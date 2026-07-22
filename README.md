@@ -1,50 +1,33 @@
-# Welcome to your Expo app 👋
+# Gribzy
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application Expo de météo outdoor multisport hors ligne, pensée pour la randonnée,
+la voile, le parapente et l'aviation légère. Elle télécharge des données GFS au format
+GRIB2 pour une zone choisie sur une carte embarquée, puis affiche pression et vent
+sans connexion.
 
-## Get started
+Le cahier des charges et les décisions durables du projet se trouvent dans
+[`docs/APP_REFERENCE.md`](docs/APP_REFERENCE.md). Ce document est la source de vérité
+à consulter avant toute évolution.
 
-1. Install dependencies
+## Développement
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Prérequis : Node.js 20.19 ou supérieur et npm.
 
 ```bash
-npm run reset-project
+npm install
+npm run check
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Commandes utiles :
 
-## Learn more
+- `npm run ios` : simulateur iOS ;
+- `npm run android` : émulateur Android ;
+- `npm run web` : navigateur, pour vérification visuelle seulement ;
+- `npm run check` : lint et vérification TypeScript.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Fonctionnement hors ligne
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+La carte de sélection est incluse dans l'application. Chaque téléchargement GRIB
+validé est conservé dans la bibliothèque locale avec ses métadonnées. Une connexion
+est uniquement nécessaire pour ajouter ou actualiser une zone.

@@ -1,36 +1,48 @@
 {
   "expo": {
-    "name": "gribzy",
+    "name": "Gribzy",
     "slug": "gribzy",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gribzy",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gribzy.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 2,
+      "package": "com.gribzy.app",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Gribzy utilise votre position uniquement pour centrer la zone météo à télécharger."
+        }
+      ],
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -43,6 +55,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6529ed6e-1c35-4991-b5d1-a14db702f4d2"
+      }
     }
   }
 }
