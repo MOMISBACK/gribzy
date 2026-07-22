@@ -26,12 +26,12 @@ export function saveDatasetMetadata(dataset: GribDataset): void {
 
 export async function importGribFile(uri: string, originalName: string): Promise<GribDataset> {
   const source = new File(uri);
-  if (source.size > 100 * 1024 * 1024) throw new Error('Le fichier dépasse la limite de 100 Mo.');
+  if (source.size > 100 * 1024 * 1024) throw new Error('The file exceeds the 100 MB limit.');
   const bytes = await source.bytes();
   const { grid } = validateGribForApp(bytes);
   const now = new Date();
   const id = `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
-  const cleanName = originalName.replace(/\.grib2?$|\.grb2?$/i, '').trim() || 'GRIB importé';
+  const cleanName = originalName.replace(/\.grib2?$|\.grb2?$/i, '').trim() || 'Imported GRIB';
   const runDate = now.toISOString().slice(0, 10).replace(/-/g, '');
   const fileName = `${slugifyName(cleanName)}-${id}.grib2`;
   const destination = getDatasetFile(fileName);
@@ -46,8 +46,8 @@ export async function importGribFile(uri: string, originalName: string): Promise
       toplat: Math.max(grid.lat1, grid.lat2),
       label: cleanName,
     },
-    model: 'Importé',
-    resolution: 'Inconnue',
+    model: 'Imported',
+    resolution: 'Unknown',
     parameters: ['pressure'],
     forecastHours: [0],
     runDate,
@@ -95,7 +95,7 @@ export async function readGribCatalog(): Promise<GribCatalog> {
       const dataFile = getDatasetFile(dataset.fileName);
       referencedFiles.add(dataset.fileName);
       if (!dataFile.exists) {
-        issues.push({ type: 'missing_data', entryName: entry.name, message: `Fichier absent : ${dataset.fileName}` });
+        issues.push({ type: 'missing_data', entryName: entry.name, message: `Missing file: ${dataset.fileName}` });
         continue;
       }
       datasets.push(dataset);
@@ -106,7 +106,7 @@ export async function readGribCatalog(): Promise<GribCatalog> {
           issues.push({
             type: 'migration_write_failed',
             entryName: entry.name,
-            message: error instanceof Error ? error.message : 'Migration impossible',
+            message: error instanceof Error ? error.message : 'Migration failed',
           });
         }
       }
@@ -114,7 +114,7 @@ export async function readGribCatalog(): Promise<GribCatalog> {
       issues.push({
         type: 'corrupt_metadata',
         entryName: entry.name,
-        message: error instanceof Error ? error.message : 'JSON illisible',
+        message: error instanceof Error ? error.message : 'Unreadable JSON',
       });
     }
   }
@@ -124,7 +124,7 @@ export async function readGribCatalog(): Promise<GribCatalog> {
       entry instanceof File && /\.grib2?$/i.test(entry.name) &&
       !referencedFiles.has(entry.name)
     ) {
-      issues.push({ type: 'orphan_data', entryName: entry.name, message: 'Aucune métadonnée valide ne référence ce fichier' });
+      issues.push({ type: 'orphan_data', entryName: entry.name, message: 'No valid metadata references this file' });
     }
   }
 
@@ -149,14 +149,14 @@ function slugifyName(name: string): string {
 
 export function renameGribDataset(dataset: GribDataset, requestedName: string): GribDataset {
   const name = requestedName.trim().replace(/\s+/g, ' ');
-  if (!name) throw new Error('Le nom ne peut pas être vide.');
-  if (name.length > 80) throw new Error('Le nom est limité à 80 caractères.');
+  if (!name) throw new Error('The name cannot be empty.');
+  if (name.length > 80) throw new Error('The name is limited to 80 characters.');
 
   const currentFile = getDatasetFile(dataset.fileName);
-  if (!currentFile.exists) throw new Error('Le fichier GRIB est introuvable.');
+  if (!currentFile.exists) throw new Error('The GRIB file cannot be found.');
   const nextFileName = `${slugifyName(name)}-${dataset.runDate}-${dataset.runHour}z-${dataset.id}.grib2`;
   const nextFile = getDatasetFile(nextFileName);
-  if (nextFile.exists && nextFileName !== dataset.fileName) throw new Error('Un fichier porte déjà ce nom.');
+  if (nextFile.exists && nextFileName !== dataset.fileName) throw new Error('A file already has this name.');
 
   const moved = nextFileName !== dataset.fileName;
   if (moved) currentFile.move(nextFile);
@@ -170,14 +170,14 @@ export function renameGribDataset(dataset: GribDataset, requestedName: string): 
   }
 }
 
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+export function formatFileSize(bytes: number, language: 'en' | 'fr' = 'en'): string {
+  if (bytes < 1024) return `${bytes} ${language === 'fr' ? 'o' : 'B'}`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} ${language === 'fr' ? 'Ko' : 'KB'}`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} ${language === 'fr' ? 'Mo' : 'MB'}`;
 }
 
-export function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString('fr-FR', {
+export function formatDate(timestamp: number, language: 'en' | 'fr' = 'en'): string {
+  return new Date(timestamp).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-GB', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',

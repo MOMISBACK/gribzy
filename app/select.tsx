@@ -4,20 +4,19 @@ import { downloadGrib } from '@/lib/gribDownload';
 import type { GribZone } from '@/lib/gribTypes';
 import { buildZoneFromLocation, getUserLocation } from '@/lib/location';
 import { getNetworkAvailability } from '@/lib/networkState';
+import { localizeTechnicalMessage, useI18n } from '@/lib/i18n';
 import { SpaceMono_400Regular, SpaceMono_700Bold, useFonts } from '@expo-google-fonts/space-mono';
 import { useNetworkState } from 'expo-network';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-const DEFAULT_ZONE: GribZone = { label: 'Bretagne', leftlon: -8, rightlon: 2, bottomlat: 45.5, toplat: 50.5 };
+const DEFAULT_ZONE: GribZone = { label: 'Brittany', leftlon: -8, rightlon: 2, bottomlat: 45.5, toplat: 50.5 };
 const SPANS = [6, 10, 20];
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Une erreur inconnue est survenue';
-}
-
 export default function SelectScreen() {
+  const { language, t } = useI18n();
+  const errorMessage = (error: unknown) => error instanceof Error ? localizeTechnicalMessage(error.message, language) : t('select.unknownError');
   const [fontsLoaded] = useFonts({ SpaceMono_400Regular, SpaceMono_700Bold });
   const networkState = useNetworkState();
   const networkAvailability = getNetworkAvailability(networkState);
@@ -41,7 +40,7 @@ export default function SelectScreen() {
     setError(null);
     try {
       const { lat, lon } = await getUserLocation();
-      const localZone = buildZoneFromLocation(lat, lon, span);
+      const localZone = buildZoneFromLocation(lat, lon, span, language);
       setZone(localZone);
       setMapFocusRequest((request) => request + 1);
     } catch (caught) {
@@ -53,13 +52,13 @@ export default function SelectScreen() {
 
   const download = async () => {
     if (isOffline) {
-      setError('Connexion requise pour télécharger une nouvelle prévision.');
+      setError(t('select.connectionError'));
       return;
     }
     setBusy('download');
     setError(null);
     try {
-      const dataset = await downloadGrib(zone, setProgress);
+      const dataset = await downloadGrib(zone, (message) => setProgress(localizeTechnicalMessage(message, language)));
       router.push({ pathname: '/map', params: { file: dataset.fileName } });
     } catch (caught) {
       setError(errorMessage(caught));
@@ -76,9 +75,9 @@ export default function SelectScreen() {
       <View style={styles.mapStage}>
         <ZonePickerMap zone={zone} span={span} focusRequest={mapFocusRequest} onChange={setZone} />
         <View style={styles.topBar}>
-          <View><Text style={styles.brand}>Gribzy</Text><Text style={styles.tagline}>Choisis la zone à emporter</Text></View>
+          <View><Text style={styles.brand}>Gribzy</Text><Text style={styles.tagline}>{t('select.tagline')}</Text></View>
           <Pressable style={styles.locationButton} onPress={locate} disabled={busy !== null} accessibilityRole="button">
-            <Text style={styles.location}>{busy === 'location' ? 'Localisation…' : '⌖ Ma position'}</Text>
+            <Text style={styles.location}>{busy === 'location' ? t('select.locating') : t('select.myLocation')}</Text>
           </Pressable>
         </View>
         <View style={styles.bottomSheet}>
@@ -86,10 +85,10 @@ export default function SelectScreen() {
             <View style={styles.zoneCopy}><Text style={styles.zoneName} numberOfLines={1}>{zone.label}</Text><Text style={styles.coords}>{zone.bottomlat}°–{zone.toplat}°N  {zone.leftlon}°–{zone.rightlon}°</Text></View>
             <View style={styles.spans}>{SPANS.map((value) => <Pressable key={value} onPress={() => resizeZone(value)} style={[styles.span, span === value && styles.spanActive]}><Text style={[styles.spanText, span === value && styles.spanTextActive]}>{value}°</Text></Pressable>)}</View>
           </View>
-          {isOffline && <View style={styles.offlineBox}><Text style={styles.offlineTitle}>Hors ligne</Text><Text style={styles.offlineText}>Connexion requise pour télécharger. Tes GRIB enregistrés restent disponibles.</Text></View>}
+          {isOffline && <View style={styles.offlineBox}><Text style={styles.offlineTitle}>{t('select.offline')}</Text><Text style={styles.offlineText}>{t('select.offlineText')}</Text></View>}
           {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
           <Pressable style={[styles.download, (busy !== null || isOffline) && styles.disabled]} disabled={busy !== null || isOffline} onPress={download} accessibilityRole="button" accessibilityState={{ disabled: busy !== null || isOffline }}>
-            {busy === 'download' ? <><ActivityIndicator color="#FFFFFF"/><Text style={styles.downloadText}>{progress || 'Connexion…'}</Text></> : <Text style={styles.downloadText}>{isOffline ? 'Connexion requise' : 'Télécharger cette zone'}</Text>}
+            {busy === 'download' ? <><ActivityIndicator color="#FFFFFF"/><Text style={styles.downloadText}>{progress || t('select.connecting')}</Text></> : <Text style={styles.downloadText}>{isOffline ? t('select.connectionRequired') : t('select.download')}</Text>}
           </Pressable>
         </View>
       </View>

@@ -13,6 +13,7 @@ Les lots techniques ordonnés sont décrits dans
 - Expo Router avec export web statique.
 - MapLibre React Native pour la carte vectorielle native.
 - Expo Network pour l'état de connectivité observé par l'écran de téléchargement.
+- Expo Localization pour suivre la locale du téléphone.
 - Nouvelle API `expo-file-system`.
 - Vitest pour les fonctions pures et le parseur.
 - Node.js 20.19 minimum ; l'environnement validé utilise Node 20.20.2.
@@ -37,9 +38,13 @@ natif. Le web utilise les variantes génériques des composants.
 - `lib/storage.ts` : catalogue, import, renommage et suppression.
 - `lib/location.ts` : permission et recentrage GPS.
 - `lib/networkState.ts` : interprétation testable de l'état réseau.
+- `lib/i18n.tsx` : dictionnaires anglais/français, détection, contexte et préférence persistante.
 - `lib/gribParser.test.ts` : fixture NOAA et tests parser.
 - `assets/map/world-land.ts` : géométrie Natural Earth embarquée.
 - `eas.json` : profils development APK, preview APK et production AAB.
+- `site/` : landing page statique bilingue et recrutement des testeurs Android.
+- `.github/workflows/pages.yml` : publication du dossier `site/` sur GitHub Pages.
+- `.github/ISSUE_TEMPLATE/beta-tester.yml` : candidature publique sans collecte d'e-mail.
 
 ## Stockage
 
@@ -103,6 +108,20 @@ expiration et contrôle utilisateur avant implémentation.
 - EAS `development` : client de développement APK.
 - EAS `preview` : APK autonome.
 - EAS `production` : AAB.
+
+## Internationalisation
+
+Les textes d'interface utilisent les clés centralisées de `lib/i18n.tsx`. L'anglais
+est le fallback obligatoire. En mode `auto`, `useLocales()` sélectionne le français
+uniquement lorsque la première langue du téléphone est `fr`; toutes les autres
+langues utilisent l'anglais. La préférence `auto | en | fr` est enregistrée dans le
+stockage documentaire privé et s'applique immédiatement sans redémarrage.
+
+Les erreurs du cœur restent écrites en anglais afin de fournir une base technique
+stable. Les écrans traduisent les messages connus avant affichage. Les noms de zones
+créés automatiquement suivent la langue active au moment de leur création ; un nom
+déjà enregistré ou modifié par l'utilisateur n'est jamais réécrit lors d'un changement
+de langue.
 
 ## Qualité et validation
 

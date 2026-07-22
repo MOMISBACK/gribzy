@@ -82,10 +82,10 @@ export function readMessageParameter(bytes: Uint8Array, messageOffset: number): 
       const category = view.getUint8(offset + 9);
       const parameter = view.getUint8(offset + 10);
 
-      let name = 'inconnu';
-      if (category === 2 && parameter === 2) name = 'UGRD (vent U)';
-      if (category === 2 && parameter === 3) name = 'VGRD (vent V)';
-      if (category === 3 && parameter === 1) name = 'PRMSL (pression)';
+      let name = 'unknown';
+      if (category === 2 && parameter === 2) name = 'UGRD (U wind)';
+      if (category === 2 && parameter === 3) name = 'VGRD (V wind)';
+      if (category === 3 && parameter === 1) name = 'PRMSL (pressure)';
 
       return { category, parameter, name };
     }
@@ -97,7 +97,7 @@ export function readMessageParameter(bytes: Uint8Array, messageOffset: number): 
     }
   }
 
-  return { category: -1, parameter: -1, name: 'non trouvé' };
+  return { category: -1, parameter: -1, name: 'not found' };
 }
 
 export interface GribDataRepresentation {
@@ -122,9 +122,9 @@ export function readDataRepresentation(
     const sectionNumber = view.getUint8(offset + 4);
 
     if (sectionNumber === 5) {
-      if (sectionSize < 21) throw new Error('Section 5 incomplète');
+      if (sectionSize < 21) throw new Error('Incomplete section 5');
       const template = view.getUint16(offset + 9, false);
-      if (template !== 0) throw new Error(`Packing GRIB non pris en charge (${template})`);
+      if (template !== 0) throw new Error(`Unsupported GRIB packing (${template})`);
       const numberOfValues = view.getUint32(offset + 5, false);
       const referenceValue = view.getFloat32(offset + 11, false);
       const binaryScaleRaw = view.getInt16(offset + 15, false);
@@ -147,7 +147,7 @@ export function readDataRepresentation(
     }
   }
 
-  throw new Error('Section 5 non trouvée');
+  throw new Error('Section 5 not found');
 }
 
 export async function decodeValues(
@@ -174,9 +174,9 @@ export async function decodeValues(
       const values = new Float32Array(numberOfValues);
       const CHUNK = 50000;
 
-      if (bitsPerValue > 31) throw new Error(`Profondeur GRIB non prise en charge (${bitsPerValue} bits)`);
+      if (bitsPerValue > 31) throw new Error(`Unsupported GRIB bit depth (${bitsPerValue} bits)`);
       if (dataOffset + Math.ceil((numberOfValues * bitsPerValue) / 8) > offset + sectionSize) {
-        throw new Error('Données GRIB tronquées');
+        throw new Error('Truncated GRIB data');
       }
 
       for (let start = 0; start < numberOfValues; start += CHUNK) {
@@ -206,7 +206,7 @@ export async function decodeValues(
     }
   }
 
-  throw new Error('Section 7 non trouvée');
+  throw new Error('Section 7 not found');
 }
 
 export interface GribGrid {
@@ -238,9 +238,9 @@ export function readGridDefinition(
     const sectionNumber = view.getUint8(offset + 4);
 
     if (sectionNumber === 3) {
-      if (sectionSize < 72) throw new Error('Section 3 incomplète');
+      if (sectionSize < 72) throw new Error('Incomplete section 3');
       const template = view.getUint16(offset + 12, false);
-      if (template !== 0) throw new Error(`Grille GRIB non prise en charge (${template})`);
+      if (template !== 0) throw new Error(`Unsupported GRIB grid (${template})`);
       // ni et nj : nombre de points en longitude et latitude
       const ni = view.getUint32(offset + 30, false);
       const nj = view.getUint32(offset + 34, false);
@@ -262,7 +262,7 @@ export function readGridDefinition(
     }
   }
 
-  throw new Error('Section 3 non trouvée');
+  throw new Error('Section 3 not found');
 }
 
 export function readBitmapIndicator(bytes: Uint8Array, messageOffset: number): number {
@@ -292,12 +292,12 @@ export interface ValidatedGrib {
 
 export function validateGribForApp(bytes: Uint8Array): ValidatedGrib {
   const messages = findGribMessages(bytes);
-  if (messages.length === 0) throw new Error('Aucun message GRIB2 valide');
-  const pressure = messages.find(message => readMessageParameter(bytes, message.offset).name.includes('pression'));
-  if (!pressure) throw new Error('Pression au niveau de la mer absente');
-  const windU = messages.find(message => readMessageParameter(bytes, message.offset).name.includes('vent U'));
-  const windV = messages.find(message => readMessageParameter(bytes, message.offset).name.includes('vent V'));
-  if ((windU && !windV) || (!windU && windV)) throw new Error('Composantes du vent incomplètes');
+  if (messages.length === 0) throw new Error('No valid GRIB2 message');
+  const pressure = messages.find(message => readMessageParameter(bytes, message.offset).name.includes('pressure'));
+  if (!pressure) throw new Error('Mean sea-level pressure is missing');
+  const windU = messages.find(message => readMessageParameter(bytes, message.offset).name.includes('U wind'));
+  const windV = messages.find(message => readMessageParameter(bytes, message.offset).name.includes('V wind'));
+  if ((windU && !windV) || (!windU && windV)) throw new Error('Incomplete wind components');
 
   const grid = readGridDefinition(bytes, pressure.offset);
   if (grid.scanningMode !== 64) {

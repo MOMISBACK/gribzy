@@ -54,28 +54,28 @@ function readForecastHours(value: unknown): number[] | null {
 }
 
 export function decodeDatasetMetadata(value: unknown): DatasetMetadataResult {
-  if (!isRecord(value)) return { success: false, reason: 'Métadonnée non structurée' };
+  if (!isRecord(value)) return { success: false, reason: 'Malformed metadata' };
   if (value.schemaVersion !== undefined && value.schemaVersion !== CURRENT_DATASET_SCHEMA) {
-    return { success: false, reason: `Version de métadonnée non prise en charge (${String(value.schemaVersion)})` };
+    return { success: false, reason: `Unsupported metadata version (${String(value.schemaVersion)})` };
   }
 
   if (!validString(value.id) || !validString(value.fileName)) {
-    return { success: false, reason: 'Identifiant ou fichier absent' };
+    return { success: false, reason: 'Missing identifier or file' };
   }
   if (value.fileName.includes('/') || value.fileName.includes('\\') || !/\.grib2?$/i.test(value.fileName)) {
-    return { success: false, reason: 'Nom de fichier non sûr' };
+    return { success: false, reason: 'Unsafe file name' };
   }
 
   const zone = readZone(value.zone);
-  if (!zone) return { success: false, reason: 'Zone géographique invalide' };
+  if (!zone) return { success: false, reason: 'Invalid geographic area' };
   if (!validString(value.runDate) || !validString(value.runHour)) {
     return { success: false, reason: 'Run absent' };
   }
   if (!validFinite(value.downloadedAt) || value.downloadedAt < 0) {
-    return { success: false, reason: 'Date de téléchargement invalide' };
+    return { success: false, reason: 'Invalid download date' };
   }
   if (!validFinite(value.fileSize) || value.fileSize < 0) {
-    return { success: false, reason: 'Taille de fichier invalide' };
+    return { success: false, reason: 'Invalid file size' };
   }
 
   const legacy = value.schemaVersion === undefined;
@@ -87,8 +87,8 @@ export function decodeDatasetMetadata(value: unknown): DatasetMetadataResult {
   if (!parameters) return { success: false, reason: 'Paramètres invalides' };
   if (!forecastHours) return { success: false, reason: 'Échéances invalides' };
 
-  const model = legacy ? (imported ? 'Importé' : 'GFS') : value.model;
-  const resolution = legacy ? (imported ? 'Inconnue' : '0.25°') : value.resolution;
+  const model = legacy ? (imported ? 'Imported' : 'GFS') : value.model;
+  const resolution = legacy ? (imported ? 'Unknown' : '0.25°') : value.resolution;
   if (!validString(model) || !validString(resolution)) {
     return { success: false, reason: 'Modèle ou résolution absent' };
   }

@@ -1,14 +1,16 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useI18n } from '@/lib/i18n';
 
 type Tab = 'files' | 'map' | 'settings';
 
 export function AppTabBar({ active, mapFile }: { active: Tab; mapFile?: string }) {
+  const { t } = useI18n();
   const tabs: { id: Tab; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
-    { id: 'files', label: 'Fichiers', icon: 'folder' },
-    { id: 'map', label: 'Carte', icon: 'map' },
-    { id: 'settings', label: 'Réglages', icon: 'settings' },
+    { id: 'files', label: t('nav.files'), icon: 'folder' },
+    { id: 'map', label: t('nav.map'), icon: 'map' },
+    { id: 'settings', label: t('nav.settings'), icon: 'settings' },
   ];
 
   const navigate = (tab: Tab) => {

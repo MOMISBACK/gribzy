@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1967d2">
+  <meta name="description" content="Gribzy is a simple offline GRIB weather viewer for outdoor activities. Join the Android alpha test.">
+  <meta property="og:title" content="Gribzy — Offline weather, ready to go">
+  <meta property="og:description" content="Help test a simple offline GRIB viewer for sailing, hiking, paragliding and light aviation.">
+  <meta property="og:image" content="https://momisback.github.io/gribzy/assets/gribzy-icon.png">
+  <meta property="og:type" content="website">
+  <title>Gribzy — Offline GRIB weather</title>
+  <link rel="icon" href="assets/gribzy-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="nav wrap">
+    <a class="brand" href="#top" aria-label="Gribzy home"><img src="assets/gribzy-icon.png" alt=""><span>Gribzy</span></a>
+    <nav aria-label="Main navigation">
+      <a href="#features" data-en="Features" data-fr="Fonctions">Features</a>
+      <a href="#testing" data-en="Alpha test" data-fr="Test alpha">Alpha test</a>
+      <button class="language" id="language" type="button" aria-label="Afficher le site en français">FR</button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <span class="eyebrow" data-en="Android alpha · Testers wanted" data-fr="Alpha Android · Testeurs recherchés">Android alpha · Testers wanted</span>
+        <h1 data-en="Offline weather,<br>ready to go." data-fr="La météo hors ligne,<br>prête à partir.">Offline weather,<br>ready to go.</h1>
+        <p class="lead" data-en="Gribzy is a focused GRIB weather viewer for sailors, hikers, pilots and paragliders. Prepare your area online, then keep pressure and wind available when the network disappears." data-fr="Gribzy est un lecteur météo GRIB épuré pour la voile, la randonnée, l’aviation légère et le parapente. Préparez votre zone en ligne, puis gardez pression et vent lorsque le réseau disparaît.">Gribzy is a focused GRIB weather viewer for sailors, hikers, pilots and paragliders. Prepare your area online, then keep pressure and wind available when the network disappears.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/MOMISBACK/gribzy/issues/new?template=beta-tester.yml" data-en="Become a tester" data-fr="Devenir testeur">Become a tester</a>
+          <a class="button secondary" href="https://github.com/MOMISBACK/gribzy" data-en="View on GitHub" data-fr="Voir sur GitHub">View on GitHub</a>
+        </div>
+        <p class="small" data-en="Free · No account · No ads · No tracking" data-fr="Gratuit · Sans compte · Sans publicité · Sans tracking">Free · No account · No ads · No tracking</p>
+      </div>
+      <aside class="test-card" aria-label="Current alpha capabilities">
+        <div class="card-top"><span class="live-dot"></span><span data-en="CURRENT ALPHA" data-fr="ALPHA ACTUELLE">CURRENT ALPHA</span></div>
+        <img src="assets/gribzy-icon.png" alt="Gribzy polar bear app icon">
+        <h2 data-en="A forecast you can carry" data-fr="Une prévision à emporter">A forecast you can carry</h2>
+        <ul>
+          <li data-en="Choose any area on the world map" data-fr="Choisir une zone sur la carte mondiale">Choose any area on the world map</li>
+          <li data-en="Download targeted GFS data" data-fr="Télécharger des données GFS ciblées">Download targeted GFS data</li>
+          <li data-en="Read pressure and 10 m wind offline" data-fr="Lire pression et vent à 10 m hors ligne">Read pressure and 10 m wind offline</li>
+          <li data-en="Keep and rename files locally" data-fr="Conserver et renommer les fichiers localement">Keep and rename files locally</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="section wrap" id="features">
+      <div class="section-heading"><span class="kicker" data-en="WHY GRIBZY" data-fr="POURQUOI GRIBZY">WHY GRIBZY</span><h2 data-en="The map and the weather. Nothing else." data-fr="La carte et la météo. Rien d’autre.">The map and the weather. Nothing else.</h2></div>
+      <div class="features">
+        <article><span class="icon">↓</span><h3 data-en="Offline-first" data-fr="Pensé hors ligne">Offline-first</h3><p data-en="Downloaded GRIB files remain on your device and can be reopened without a connection." data-fr="Les GRIB téléchargés restent sur votre appareil et peuvent être rouverts sans connexion.">Downloaded GRIB files remain on your device and can be reopened without a connection.</p></article>
+        <article><span class="icon">◎</span><h3 data-en="World coverage" data-fr="Couverture mondiale">World coverage</h3><p data-en="Pan, pinch and use GPS to place a download area anywhere on the world map." data-fr="Déplacez, pincez et utilisez le GPS pour placer une zone partout dans le monde.">Pan, pinch and use GPS to place a download area anywhere on the world map.</p></article>
+        <article><span class="icon">≈</span><h3 data-en="Calm by design" data-fr="Épuré par nature">Calm by design</h3><p data-en="A clear, one-handed interface built for sunlight, movement and large touch targets." data-fr="Une interface claire, utilisable à une main, au soleil et en mouvement.">A clear, one-handed interface built for sunlight, movement and large touch targets.</p></article>
+      </div>
+    </section>
+
+    <section class="testing" id="testing"><div class="wrap testing-grid">
+      <div><span class="kicker" data-en="HELP SHAPE V1" data-fr="AIDEZ À CRÉER LA V1">HELP SHAPE V1</span><h2 data-en="Take Gribzy outside." data-fr="Emmenez Gribzy dehors.">Take Gribzy outside.</h2><p data-en="We need Android testers with real outdoor use cases. Technical experience is not required—clear observations are more valuable." data-fr="Nous cherchons des testeurs Android avec de vrais usages outdoor. Aucune expérience technique n’est nécessaire : des observations claires suffisent.">We need Android testers with real outdoor use cases. Technical experience is not required—clear observations are more valuable.</p></div>
+      <ol>
+        <li><strong data-en="Install" data-fr="Installer">Install</strong><span data-en="Try the preview APK on a physical Android phone." data-fr="Essayez l’APK preview sur un téléphone Android réel.">Try the preview APK on a physical Android phone.</span></li>
+        <li><strong data-en="Prepare" data-fr="Préparer">Prepare</strong><span data-en="Select a zone, use GPS and download a GRIB." data-fr="Sélectionnez une zone, utilisez le GPS et téléchargez un GRIB.">Select a zone, use GPS and download a GRIB.</span></li>
+        <li><strong data-en="Go offline" data-fr="Passer hors ligne">Go offline</strong><span data-en="Restart in airplane mode and inspect the saved forecast." data-fr="Redémarrez en mode avion et consultez la prévision enregistrée.">Restart in airplane mode and inspect the saved forecast.</span></li>
+        <li><strong data-en="Report" data-fr="Signaler">Report</strong><span data-en="Tell us what worked, what failed and what felt unclear." data-fr="Dites-nous ce qui fonctionne, échoue ou manque de clarté.">Tell us what worked, what failed and what felt unclear.</span></li>
+      </ol>
+    </div></section>
+
+    <section class="section wrap honest">
+      <div><span class="kicker" data-en="HONEST ALPHA" data-fr="ALPHA TRANSPARENTE">HONEST ALPHA</span><h2 data-en="Useful today. Still growing." data-fr="Déjà utile. Encore en construction.">Useful today. Still growing.</h2></div>
+      <div class="columns"><div><h3 data-en="Available now" data-fr="Disponible maintenant">Available now</h3><p data-en="GFS area download, local library, pressure, isobars, wind, detailed online map and a basic embedded offline world map." data-fr="Téléchargement GFS par zone, bibliothèque locale, pression, isobares, vent, carte détaillée en ligne et fond mondial hors ligne simplifié.">GFS area download, local library, pressure, isobars, wind, detailed online map and a basic embedded offline world map.</p></div><div><h3 data-en="Coming next" data-fr="Prochainement">Coming next</h3><p data-en="Multiple forecast hours, a real timeline, temperature, rain and downloadable detailed offline maps." data-fr="Plusieurs échéances, une vraie timeline, température, pluie et cartes détaillées téléchargeables hors ligne.">Multiple forecast hours, a real timeline, temperature, rain and downloadable detailed offline maps.</p></div></div>
+    </section>
+
+    <section class="cta wrap"><h2 data-en="Ready to test in the real world?" data-fr="Prêt à tester sur le terrain ?">Ready to test in the real world?</h2><a class="button primary" href="https://github.com/MOMISBACK/gribzy/issues/new?template=beta-tester.yml" data-en="Join the Android alpha" data-fr="Rejoindre l’alpha Android">Join the Android alpha</a></section>
+  </main>
+
+  <footer class="wrap"><span>© 2026 Gribzy</span><p data-en="Gribzy does not replace official forecasts, warnings or safety briefings." data-fr="Gribzy ne remplace pas les prévisions, alertes ou briefings de sécurité officiels.">Gribzy does not replace official forecasts, warnings or safety briefings.</p><a href="https://github.com/MOMISBACK/gribzy">GitHub</a></footer>
+  <script src="language.js"></script>
+</body>
+</html>

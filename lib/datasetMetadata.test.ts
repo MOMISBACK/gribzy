@@ -32,7 +32,7 @@ describe('decodeDatasetMetadata', () => {
 
   it('identifie prudemment un ancien import', () => {
     const result = decodeDatasetMetadata({ ...LEGACY, runHour: '--' });
-    expect(result.success && result.dataset.model).toBe('Importé');
+    expect(result.success && result.dataset.model).toBe('Imported');
     expect(result.success && result.dataset.parameters).toEqual(['pressure']);
   });
 
@@ -54,7 +54,7 @@ describe('decodeDatasetMetadata', () => {
     const result = decodeDatasetMetadata({ ...LEGACY, schemaVersion: 99 });
     expect(result).toEqual({
       success: false,
-      reason: 'Version de métadonnée non prise en charge (99)',
+      reason: 'Unsupported metadata version (99)',
     });
   });
 

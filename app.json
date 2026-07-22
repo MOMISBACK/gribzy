@@ -32,11 +32,12 @@
     },
     "plugins": [
       "expo-router",
+      "expo-localization",
       "@maplibre/maplibre-react-native",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Gribzy utilise votre position uniquement pour centrer la zone météo à télécharger."
+          "locationWhenInUsePermission": "Gribzy uses your location only to center the weather area you choose to download."
         }
       ],
       [

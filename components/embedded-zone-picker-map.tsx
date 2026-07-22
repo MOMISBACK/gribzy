@@ -5,6 +5,7 @@ import Svg, { Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { WORLD_LAND_RINGS } from '@/assets/map/world-land';
 import { describeLocation } from '@/lib/geoNames';
 import type { GribZone } from '@/lib/gribTypes';
+import { useI18n } from '@/lib/i18n';
 
 const DOMAIN = { west: -180, east: 180, south: -85, north: 85 };
 const MIN_ZOOM = 1;
@@ -53,6 +54,7 @@ function screenToGeo(x: number, y: number, size: Size, viewport: Viewport) {
 }
 
 export function EmbeddedZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePickerMapProps) {
+  const { language, t } = useI18n();
   const [size, setSize] = useState<Size>({ width: 1, height: 1 });
   const [viewport, setViewport] = useState<Viewport>({ centerLon: 0, centerLat: 0, zoom: 1 });
   const viewportRef = useRef(viewport);
@@ -71,11 +73,11 @@ export function EmbeddedZonePickerMap({ zone, span, focusRequest = 0, onChange }
     const longitude = clamp(point.longitude, DOMAIN.west + halfWidth, DOMAIN.east - halfWidth);
     const latitude = clamp(point.latitude, DOMAIN.south + halfHeight, DOMAIN.north - halfHeight);
     onChange({
-      label: describeLocation(latitude, longitude),
+      label: describeLocation(latitude, longitude, language),
       leftlon: Number((longitude - halfWidth).toFixed(1)), rightlon: Number((longitude + halfWidth).toFixed(1)),
       bottomlat: Number((latitude - halfHeight).toFixed(1)), toplat: Number((latitude + halfHeight).toFixed(1)),
     });
-  }, [onChange, size, span]);
+  }, [language, onChange, size, span]);
 
   useEffect(() => {
     if (focusRequest === 0 || size.width <= 1) return;
@@ -141,7 +143,7 @@ export function EmbeddedZonePickerMap({ zone, span, focusRequest = 0, onChange }
         <Rect x={topLeft.x} y={topLeft.y} width={bottomRight.x - topLeft.x} height={bottomRight.y - topLeft.y} fill="#2474E5" fillOpacity={0.2} stroke="#1264D3" strokeWidth={3} />
         <SvgText x={14} y={22} fill="#31576B" fontSize={11} fontFamily="SpaceMono_700Bold">{viewport.zoom.toFixed(1)}×</SvgText>
       </Svg>
-      <View pointerEvents="none" style={styles.help}><Text style={styles.helpText}>1 doigt : déplacer · 2 doigts : zoomer · toucher : choisir</Text></View>
+      <View pointerEvents="none" style={styles.help}><Text style={styles.helpText}>{t('gesture.embedded')}</Text></View>
     </View>
   );
 }

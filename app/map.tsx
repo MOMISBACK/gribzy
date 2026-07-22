@@ -12,6 +12,7 @@ import {
 } from '@/lib/gribParser';
 import type { GribDataset } from '@/lib/gribTypes';
 import { getDatasetFile, listGribDatasets } from '@/lib/storage';
+import { localizeTechnicalMessage, useI18n } from '@/lib/i18n';
 import { SpaceMono_400Regular, SpaceMono_700Bold, useFonts } from '@expo-google-fonts/space-mono';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -39,13 +40,14 @@ const LAND_RINGS_WITH_BOUNDS = WORLD_LAND_RINGS.map((ring) => ({
 }));
 
 export default function MapScreen() {
+  const { language, t } = useI18n();
   const window = useWindowDimensions();
   const mapWidth = window.width;
   const mapHeight = Math.max(240, window.height);
   const [fontsLoaded] = useFonts({ SpaceMono_400Regular, SpaceMono_700Bold });
   const params = useLocalSearchParams<{ file?: string }>();
   const [dataset, setDataset] = useState<GribDataset | null>(null);
-  const [status, setStatus] = useState('Chargement...');
+  const [status, setStatus] = useState(t('map.loading'));
   const [fileInfo, setFileInfo] = useState<{
     size: number;
     modified: number;
@@ -125,17 +127,17 @@ export default function MapScreen() {
     const v = windData.v[idx];
     const speedKt = Math.sqrt(u * u + v * v) * 1.94384;
     const dirDeg = (Math.atan2(-u, -v) * 180 / Math.PI + 360) % 360;
-    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     setTouched({ x, y, pressure, windSpeed: speedKt, windDir: dirs[Math.round(dirDeg / 45) % 8] });
   }, [dataset, gridData, windData]);
 
   const loadData = useCallback(async () => {
     try {
-      setStatus('Lecture...');
+      setStatus(t('map.reading'));
 
-      if (!params.file) throw new Error('Aucun fichier sélectionné');
+      if (!params.file) throw new Error(t('map.noFile'));
       const metadata = (await listGribDatasets()).find((item) => item.fileName === params.file);
-      if (!metadata) throw new Error('Donnée locale introuvable');
+      if (!metadata) throw new Error(t('map.notFound'));
       setDataset(metadata);
       setFileInfo({ size: metadata.fileSize, modified: metadata.downloadedAt });
 
@@ -145,14 +147,14 @@ export default function MapScreen() {
       const messages = findGribMessages(bytes);
 
       const pressureMsg = messages.find(msg =>
-        readMessageParameter(bytes, msg.offset).name.includes('pression')
+        readMessageParameter(bytes, msg.offset).name.includes('pressure')
       );
-      if (!pressureMsg) throw new Error('Message pression non trouvé');
+      if (!pressureMsg) throw new Error(t('map.pressureMissing'));
 
       const grid = readGridDefinition(bytes, pressureMsg.offset);
       const repr = readDataRepresentation(bytes, pressureMsg.offset);
 
-      setStatus('Décodage...');
+      setStatus(t('map.decoding'));
       const raw = await decodeValues(bytes, pressureMsg.offset, repr);
 
       const values = new Float32Array(raw.length);
@@ -175,10 +177,10 @@ export default function MapScreen() {
       setIsobares(iso);
 
       const uMsg = messages.find(msg =>
-        readMessageParameter(bytes, msg.offset).name.includes('vent U')
+        readMessageParameter(bytes, msg.offset).name.includes('U wind')
       );
       const vMsg = messages.find(msg =>
-        readMessageParameter(bytes, msg.offset).name.includes('vent V')
+        readMessageParameter(bytes, msg.offset).name.includes('V wind')
       );
 
       if (uMsg && vMsg) {
@@ -191,10 +193,10 @@ export default function MapScreen() {
 
       setStatus(`${min.toFixed(0)}–${max.toFixed(0)} hPa`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Donnée illisible';
-      setStatus(`Erreur : ${message}`);
+      const message = error instanceof Error ? localizeTechnicalMessage(error.message, language) : t('map.unreadable');
+      setStatus(t('map.error', { message }));
     }
-  }, [params.file]);
+  }, [language, params.file, t]);
 
   useEffect(() => {
     void loadData();
@@ -330,13 +332,13 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.header} onPress={() => setSheet('parameter')} accessibilityRole="button" accessibilityLabel="Choisir le paramètre météo">
-        <View style={styles.headerTop}><Text style={styles.zoneName}>{activeParameter === 'pressure' ? 'Pression' : 'Vent'}⌄</Text></View>
+      <Pressable style={styles.header} onPress={() => setSheet('parameter')} accessibilityRole="button" accessibilityLabel={t('map.parameterA11y')}>
+        <View style={styles.headerTop}><Text style={styles.zoneName}>{activeParameter === 'pressure' ? t('map.pressure') : t('map.wind')}⌄</Text></View>
         <View style={styles.headerBottom}>
-          <Text style={[styles.status, isOld && styles.fileDateOld]}>{dataset?.runHour === '--' ? 'Fichier importé' : `Run ${dataset?.runDate ?? '—'} · ${dataset?.runHour ?? '—'} UTC`}</Text>
+          <Text style={[styles.status, isOld && styles.fileDateOld]}>{dataset?.runHour === '--' ? t('map.imported') : `Run ${dataset?.runDate ?? '—'} · ${dataset?.runHour ?? '—'} UTC`}</Text>
           {isOld && (
             <Pressable onPress={() => router.push('/select')}>
-              <Text style={styles.refreshHint}>↻ rafraîchir</Text>
+              <Text style={styles.refreshHint}>{t('map.refresh')}</Text>
             </Pressable>
           )}
         </View>
@@ -404,23 +406,23 @@ export default function MapScreen() {
               </Pressable>
             )}
 
-            <Pressable style={styles.layersButton} onPress={() => setSheet('layers')} accessibilityRole="button" accessibilityLabel="Options d’affichage">
+            <Pressable style={styles.layersButton} onPress={() => setSheet('layers')} accessibilityRole="button" accessibilityLabel={t('map.layersA11y')}>
               <MaterialIcons name="layers" size={24} color="#1967D2" />
             </Pressable>
-            <Pressable style={styles.infoButton} onPress={() => setSheet('info')} accessibilityRole="button" accessibilityLabel="Informations du fichier">
+            <Pressable style={styles.infoButton} onPress={() => setSheet('info')} accessibilityRole="button" accessibilityLabel={t('map.infoA11y')}>
               <MaterialIcons name="info-outline" size={24} color="#1967D2" />
             </Pressable>
 
-            <View style={styles.timeline} accessibilityLabel="Échéance disponible : heure zéro">
+            <View style={styles.timeline} accessibilityLabel={t('map.timelineA11y')}>
               <View style={styles.timelinePlay}><MaterialIcons name="play-arrow" size={22} color="#9AA0A6" /></View>
-              <View style={styles.timelineCopy}><View style={styles.timelineLabels}><Text style={styles.timelineHour}>H+0</Text><Text style={styles.timelineOnly}>1 échéance</Text></View><View style={styles.timelineTrack}><View style={styles.timelineDot} /></View></View>
+              <View style={styles.timelineCopy}><View style={styles.timelineLabels}><Text style={styles.timelineHour}>H+0</Text><Text style={styles.timelineOnly}>{t('map.oneForecast')}</Text></View><View style={styles.timelineTrack}><View style={styles.timelineDot} /></View></View>
               <MaterialIcons name="expand-less" size={22} color="#9AA0A6" />
             </View>
 
             {touched && (
               <View style={styles.infoPanel}>
-                <View style={styles.infoHeader}><Text style={styles.infoPlace} numberOfLines={1}>{dataset?.zone.label ?? 'Point météo'}</Text><Pressable accessibilityLabel="Fermer" hitSlop={10} onPress={() => setTouched(null)}><MaterialIcons name="close" size={22} color="#5F6368" /></Pressable></View>
-                <View style={styles.infoMetrics}><View style={styles.infoMetric}><Text style={styles.infoLabel}>Vent</Text><Text style={styles.infoWind}>{touched.windSpeed.toFixed(0)} kt {touched.windDir}</Text></View><View style={styles.infoMetric}><Text style={styles.infoLabel}>Pression</Text><Text style={styles.infoPressure}>{touched.pressure.toFixed(1)} hPa</Text></View></View>
+                <View style={styles.infoHeader}><Text style={styles.infoPlace} numberOfLines={1}>{dataset?.zone.label ?? t('map.weatherPoint')}</Text><Pressable accessibilityLabel={t('map.close')} hitSlop={10} onPress={() => setTouched(null)}><MaterialIcons name="close" size={22} color="#5F6368" /></Pressable></View>
+                <View style={styles.infoMetrics}><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.wind')}</Text><Text style={styles.infoWind}>{touched.windSpeed.toFixed(0)} kt {touched.windDir}</Text></View><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.pressure')}</Text><Text style={styles.infoPressure}>{touched.pressure.toFixed(1)} hPa</Text></View></View>
               </View>
             )}
           </View>
@@ -432,21 +434,21 @@ export default function MapScreen() {
         <Pressable style={styles.sheetBackdrop} onPress={() => setSheet(null)} />
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{sheet === 'parameter' ? 'Paramètre' : sheet === 'layers' ? 'Affichage' : 'Fichier GRIB'}</Text>
+          <Text style={styles.sheetTitle}>{sheet === 'parameter' ? t('map.parameter') : sheet === 'layers' ? t('map.display') : t('map.file')}</Text>
           {sheet === 'parameter' ? <>
-            <SheetChoice icon="compress" title="Pression" detail="hPa" selected={activeParameter === 'pressure'} onPress={() => { setActiveParameter('pressure'); setShowIsobares(true); setSheet(null); }} />
-            <SheetChoice icon="air" title="Vent" detail="nœuds" selected={activeParameter === 'wind'} onPress={() => { setActiveParameter('wind'); setShowWind(true); setSheet(null); }} />
+            <SheetChoice icon="compress" title={t('map.pressure')} detail="hPa" selected={activeParameter === 'pressure'} onPress={() => { setActiveParameter('pressure'); setShowIsobares(true); setSheet(null); }} />
+            <SheetChoice icon="air" title={t('map.wind')} detail={t('map.knots')} selected={activeParameter === 'wind'} onPress={() => { setActiveParameter('wind'); setShowWind(true); setSheet(null); }} />
           </> : sheet === 'layers' ? <>
-            <SheetToggle icon="waves" title="Afficher les isobares" value={showIsobares} onValueChange={setShowIsobares} />
-            <SheetToggle icon="air" title="Afficher les vecteurs vent" value={showWind} onValueChange={setShowWind} />
-            <SheetToggle icon="public" title="Fond détaillé" value={onlineMapAvailable} disabled onValueChange={() => undefined} />
+            <SheetToggle icon="waves" title={t('map.showIsobars')} value={showIsobares} onValueChange={setShowIsobares} />
+            <SheetToggle icon="air" title={t('map.showWind')} value={showWind} onValueChange={setShowWind} />
+            <SheetToggle icon="public" title={t('map.detailedMap')} value={onlineMapAvailable} disabled onValueChange={() => undefined} />
           </> : <>
-            <InfoRow label="Nom" value={dataset?.zone.label ?? '—'} />
-            <InfoRow label="Modèle" value={dataset?.model ?? '—'} />
-            <InfoRow label="Résolution" value={dataset?.resolution ?? '—'} />
-            <InfoRow label="Run" value={dataset?.runHour === '--' ? 'Origine inconnue' : `${dataset?.runDate ?? '—'} · ${dataset?.runHour ?? '—'} UTC`} />
-            <InfoRow label="Taille" value={fileInfo ? `${(fileInfo.size / 1024).toFixed(0)} Ko` : '—'} />
-            <InfoRow label="Zone" value={dataset ? `${dataset.zone.bottomlat}° / ${dataset.zone.toplat}° · ${dataset.zone.leftlon}° / ${dataset.zone.rightlon}°` : '—'} />
+            <InfoRow label={t('map.name')} value={dataset?.zone.label ?? '—'} />
+            <InfoRow label={t('map.model')} value={dataset?.model ?? '—'} />
+            <InfoRow label={t('map.resolution')} value={dataset?.resolution ?? '—'} />
+            <InfoRow label={t('map.run')} value={dataset?.runHour === '--' ? t('map.unknownOrigin') : `${dataset?.runDate ?? '—'} · ${dataset?.runHour ?? '—'} UTC`} />
+            <InfoRow label={t('map.size')} value={fileInfo ? `${(fileInfo.size / 1024).toFixed(0)} KB` : '—'} />
+            <InfoRow label={t('map.area')} value={dataset ? `${dataset.zone.bottomlat}° / ${dataset.zone.toplat}° · ${dataset.zone.leftlon}° / ${dataset.zone.rightlon}°` : '—'} />
           </>}
         </View>
       </Modal>

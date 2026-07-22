@@ -27,7 +27,8 @@ ou plus fiable n'appartient probablement pas au MVP.
 
 Gribzy est une **alpha fonctionnelle**. Le socle minimal existe : bibliothèque locale,
 sélection mondiale, GPS, téléchargement GFS ciblé, lecture pression/vent, carte
-OpenFreeMap en ligne et fallback mondial hors ligne.
+OpenFreeMap en ligne, fallback mondial hors ligne et interface anglais/français avec
+détection automatique de la langue du téléphone.
 
 Les principaux écarts avant bêta sont :
 

@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import { describeLocation } from './geoNames';
+import type { AppLanguage } from './i18nCore';
 
 export interface UserLocation {
   lat: number;
@@ -9,7 +10,7 @@ export interface UserLocation {
 export async function getUserLocation(): Promise<UserLocation> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
-    throw new Error('Permission de localisation refusée');
+    throw new Error('Location permission denied');
   }
 
   const location = await Location.getCurrentPositionAsync({
@@ -22,11 +23,11 @@ export async function getUserLocation(): Promise<UserLocation> {
   };
 }
 
-export function buildZoneFromLocation(lat: number, lon: number, span = 10) {
+export function buildZoneFromLocation(lat: number, lon: number, span = 10, language: AppLanguage = 'en') {
   const halfWidth = span / 2;
   const halfHeight = span / 4;
   return {
-    label: describeLocation(lat, lon),
+    label: describeLocation(lat, lon, language),
     leftlon: Math.round((lon - halfWidth) * 10) / 10,
     rightlon: Math.round((lon + halfWidth) * 10) / 10,
     bottomlat: Math.round((lat - halfHeight) * 10) / 10,

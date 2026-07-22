@@ -96,7 +96,7 @@ describe('downloadGribWithDependencies', () => {
     });
 
     await expect(downloadGribWithDependencies(ZONE, dependencies))
-      .rejects.toThrow('Téléchargement impossible. GRIB invalide');
+      .rejects.toThrow('Download failed. GRIB invalide');
     expect(files.size).toBe(0);
     expect(saved).toHaveLength(0);
   });
@@ -112,7 +112,7 @@ describe('downloadGribWithDependencies', () => {
     };
 
     await expect(downloadGribWithDependencies(ZONE, dependencies, undefined, controller.signal))
-      .rejects.toThrow('Téléchargement annulé');
+      .rejects.toThrow('Download cancelled');
     expect(attempts).toBe(1);
     expect(files.size).toBe(0);
     expect(saved).toHaveLength(0);
@@ -126,7 +126,7 @@ describe('downloadGribWithDependencies', () => {
     });
 
     await expect(downloadGribWithDependencies(ZONE, dependencies))
-      .rejects.toThrow('Téléchargement impossible. Stockage indisponible');
+      .rejects.toThrow('Download failed. Stockage indisponible');
     expect(files.size).toBe(0);
   });
 });

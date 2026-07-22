@@ -99,6 +99,11 @@ Les réglages contiennent uniquement des options qui ont un effet réel : unité
 langue, performance, stockage, confidentialité et informations de version. Une option
 future reste absente plutôt que désactivée sans explication.
 
+L'anglais est la langue de référence. Au premier lancement, l'application suit la
+langue du téléphone : français pour une locale `fr`, anglais pour toute autre locale.
+Le réglage de langue permet de conserver ce mode automatique ou de forcer English ou
+Français ; le choix est local et persistant.
+
 ## Branding
 
 - **Nom** : Gribzy.
@@ -167,7 +172,7 @@ puis en mode avion.
 | Carte hors ligne | Partiel | Natural Earth mondial embarqué | Détail local insuffisant |
 | Point météo | Partiel | Vent et pression au point touché | Autres variables et lieu précis absents |
 | Timeline | Partiel | État fidèle `H+0` | Pas encore de série temporelle |
-| Réglages | Partiel | Informations et stockage réels | Options modifiables limitées |
+| Réglages | Partiel | Langue automatique/anglais/français, informations et stockage réels | Autres options modifiables limitées |
 | Branding | Terminé | Ours officiel, splash, launcher, favicon | Masques Android à vérifier |
 | Qualité | Partiel | TypeScript, lint, 17 tests réseau/téléchargement/métadonnées/parser, export | Tests UI et appareils absents |
 | Distribution | Partiel | Profils APK/AAB configurés | Installation et stores à valider |

@@ -59,7 +59,7 @@ export function getRunCandidates(now = new Date()): RunCandidate[] {
 }
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Erreur inconnue';
+  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 function slugifyLabel(label: string): string {
@@ -76,7 +76,7 @@ function report(onProgress: ((message: string) => void) | undefined, message: st
 }
 
 function throwIfCancelled(signal?: AbortSignal) {
-  if (signal?.aborted) throw new Error('Téléchargement annulé');
+  if (signal?.aborted) throw new Error('Download cancelled');
 }
 
 export async function downloadGribWithDependencies<TTarget>(
@@ -88,7 +88,7 @@ export async function downloadGribWithDependencies<TTarget>(
   dependencies.prepare();
   const startedAt = dependencies.now();
   const timestamp = startedAt.getTime();
-  let lastError = 'Aucun run NOAA disponible';
+  let lastError = 'No NOAA run available';
 
   for (const [index, run] of getRunCandidates(startedAt).entries()) {
     throwIfCancelled(signal);
@@ -107,7 +107,7 @@ export async function downloadGribWithDependencies<TTarget>(
       throwIfCancelled(signal);
       const validated = dependencies.validate(bytes);
       if (!validated.windU || !validated.windV) {
-        throw new Error('Vent à 10 m absent de la réponse NOAA');
+        throw new Error('10 m wind is missing from the NOAA response');
       }
 
       const fileName = `${slugifyLabel(zone.label)}-${run.date}-${run.hour}z-${timestamp}.grib2`;
@@ -131,17 +131,17 @@ export async function downloadGribWithDependencies<TTarget>(
       };
       dependencies.saveMetadata(dataset);
       committed = true;
-      report(onProgress, 'Donnée enregistrée');
+      report(onProgress, 'Data saved');
       return dataset;
     } catch (error) {
       dependencies.removeIfExists(temporary);
       if (destination && !committed) dependencies.removeIfExists(destination);
-      if (signal?.aborted || getErrorMessage(error) === 'Téléchargement annulé') {
-        throw new Error('Téléchargement annulé');
+      if (signal?.aborted || getErrorMessage(error) === 'Download cancelled') {
+        throw new Error('Download cancelled');
       }
       lastError = getErrorMessage(error);
     }
   }
 
-  throw new Error(`Téléchargement impossible. ${lastError}`);
+  throw new Error(`Download failed. ${lastError}`);
 }

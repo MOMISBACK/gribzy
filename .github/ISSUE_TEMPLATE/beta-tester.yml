@@ -1,0 +1,44 @@
+name: Join the Android alpha
+description: Volunteer to test Gribzy in a real outdoor setting
+title: "[Android alpha] Tester application"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping Gribzy. Please do not post your email address or other personal information here. We will coordinate through this GitHub issue.
+  - type: input
+    id: device
+    attributes:
+      label: Android device
+      description: Phone model and Android version.
+      placeholder: Google Pixel 7 — Android 16
+    validations:
+      required: true
+  - type: dropdown
+    id: activity
+    attributes:
+      label: Main activity
+      options:
+        - Sailing
+        - Hiking
+        - Paragliding
+        - Light aviation
+        - Other outdoor activity
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: How would you use Gribzy?
+      placeholder: Coastal sailing with intermittent mobile coverage…
+    validations:
+      required: true
+  - type: checkboxes
+    id: commitment
+    attributes:
+      label: Test agreement
+      options:
+        - label: I can install a preview APK and test download, restart and airplane mode.
+          required: true
+        - label: I understand this is alpha software and not a replacement for official forecasts or safety briefings.
+          required: true

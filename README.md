@@ -1,5 +1,7 @@
 # Gribzy
 
+**Website and Android tester recruitment:** <https://momisback.github.io/gribzy/>
+
 Application Expo de météo outdoor multisport hors ligne, pensée pour la randonnée,
 la voile, le parapente et l'aviation légère. Elle télécharge des données GFS au format
 GRIB2 pour une zone choisie sur une carte embarquée, puis affiche pression et vent

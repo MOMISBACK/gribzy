@@ -5,6 +5,7 @@ import type { FeatureCollection, Polygon } from 'geojson';
 
 import { describeLocation } from '@/lib/geoNames';
 import type { GribZone } from '@/lib/gribTypes';
+import { useI18n } from '@/lib/i18n';
 import { EmbeddedZonePickerMap } from './embedded-zone-picker-map';
 
 const OPEN_FREE_MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
@@ -21,13 +22,13 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function zoneAt(latitude: number, longitude: number, span: number): GribZone {
+function zoneAt(latitude: number, longitude: number, span: number, language: 'en' | 'fr'): GribZone {
   const halfWidth = span / 2;
   const halfHeight = span / 4;
   const centerLon = clamp(longitude, DOMAIN.west + halfWidth, DOMAIN.east - halfWidth);
   const centerLat = clamp(latitude, DOMAIN.south + halfHeight, DOMAIN.north - halfHeight);
   return {
-    label: describeLocation(centerLat, centerLon),
+    label: describeLocation(centerLat, centerLon, language),
     leftlon: Number((centerLon - halfWidth).toFixed(1)),
     rightlon: Number((centerLon + halfWidth).toFixed(1)),
     bottomlat: Number((centerLat - halfHeight).toFixed(1)),
@@ -36,6 +37,7 @@ function zoneAt(latitude: number, longitude: number, span: number): GribZone {
 }
 
 export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePickerMapProps) {
+  const { language, t } = useI18n();
   const [mapReady, setMapReady] = useState(false);
   const center: [number, number] = [(zone.leftlon + zone.rightlon) / 2, (zone.bottomlat + zone.toplat) / 2];
   const zoneShape = useMemo<FeatureCollection<Polygon>>(() => ({
@@ -57,7 +59,7 @@ export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePi
   const handleRegionChange = (event: { nativeEvent: ViewStateChangeEvent }) => {
     if (!event.nativeEvent.userInteraction) return;
     const [longitude, latitude] = event.nativeEvent.center;
-    onChange(zoneAt(latitude, longitude, span));
+    onChange(zoneAt(latitude, longitude, span, language));
   };
 
   return <View style={styles.frame}>
@@ -87,7 +89,7 @@ export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePi
         </GeoJSONSource>
       </Map>
     </View>
-    {mapReady && <View pointerEvents="none" style={styles.help}><Text style={styles.helpText}>Déplace la carte pour placer le cadre · pince pour zoomer</Text></View>}
+    {mapReady && <View pointerEvents="none" style={styles.help}><Text style={styles.helpText}>{t('gesture.online')}</Text></View>}
   </View>;
 }
 

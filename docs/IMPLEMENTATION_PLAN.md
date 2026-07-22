@@ -59,6 +59,8 @@ Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des
 | NET-101 — état de connectivité | Implémenté, validation appareil requise | Mode avion puis retour en ligne sur APK Android |
 | DL-102 — téléchargement testable | Cœur implémenté, validation native requise | Timeout natif et essai interruption sur appareil |
 | STORE-103 — catalogue versionné | Implémenté, validation native requise | Ouvrir un catalogue 1.1 réel puis vérifier sa réécriture |
+| I18N-107 — anglais/français | Implémenté, validation appareil requise | Locale téléphone, persistance et changement à chaud sur Android/iOS |
+| QA-108 — recrutement public | Implémenté, publication requise | GitHub Pages déployée et première candidature reçue |
 | CORE-104 — service de décodage | À faire | Fixture décodée hors écran |
 | MAP-105 — alignement | À faire | Tests de projection et contrôle appareil |
 | QA-106 — parcours automatisé | À faire | Outil E2E choisi et scénario critique exécuté |
@@ -180,6 +182,28 @@ cohérente après pan/pincement.
 - automatiser au minimum ouverture locale et navigation des trois onglets.
 
 **Sortie du lot 1 :** nouvelle exécution complète du lot 0 sur Android, puis iOS.
+
+### I18N-107 — langue de l'application
+
+**État : implémenté le 22 juillet 2026, validation appareil en attente.**
+
+- anglais comme fallback pour toute locale non française ;
+- détection automatique du français via la première locale du téléphone ;
+- choix persistant Automatique, English ou Français dans Réglages ;
+- textes, accessibilité, formats de date/taille et noms automatiques de zone adaptés ;
+- conservation stricte des noms de fichiers déjà enregistrés.
+
+**Acceptation :** une installation fraîche suit une locale `fr`, utilise l'anglais
+pour une autre locale, puis conserve chaque choix manuel après fermeture complète.
+
+### QA-108 — recruter des testeurs
+
+**État : implémenté le 22 juillet 2026, publication GitHub Pages en attente.**
+
+- landing page anglaise/française fidèle aux capacités réelles de l'alpha ;
+- appel principal vers un formulaire GitHub structuré ;
+- objectifs de test Android et avertissement de sécurité explicites ;
+- déploiement automatique du dossier `site/` depuis `main`.
 
 ## Décision anticipée — carte hors ligne
 

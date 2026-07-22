@@ -1,4 +1,5 @@
 import { AppTabBar } from '@/components/app-tab-bar';
+import { localizeTechnicalMessage, useI18n } from '@/lib/i18n';
 import type { GribDataset } from '@/lib/gribTypes';
 import { deleteGribDataset, formatDate, formatFileSize, importGribFile, listGribDatasets, renameGribDataset } from '@/lib/storage';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -8,6 +9,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function LibraryScreen() {
+  const { language, t } = useI18n();
   const [datasets, setDatasets] = useState<GribDataset[]>([]);
   const [editing, setEditing] = useState<GribDataset | null>(null);
   const [draftName, setDraftName] = useState('');
@@ -24,40 +26,40 @@ export default function LibraryScreen() {
       refresh();
       router.push({ pathname: '/map', params: { file: dataset.fileName } });
     } catch (error) {
-      Alert.alert('Fichier incompatible', error instanceof Error ? error.message : 'Impossible d’ouvrir ce GRIB.');
+      Alert.alert(t('error.incompatibleTitle'), error instanceof Error ? localizeTechnicalMessage(error.message, language) : t('error.open'));
     } finally { setImporting(false); }
   };
 
   const menu = (item: GribDataset) => Alert.alert(item.zone.label, undefined, [
-    { text: 'Renommer', onPress: () => { setEditing(item); setDraftName(item.zone.label); } },
-    { text: 'Supprimer', style: 'destructive', onPress: () => Alert.alert('Supprimer ce GRIB ?', item.zone.label, [{ text: 'Annuler', style: 'cancel' }, { text: 'Supprimer', style: 'destructive', onPress: () => { deleteGribDataset(item); refresh(); } }]) },
-    { text: 'Annuler', style: 'cancel' },
+    { text: t('library.rename'), onPress: () => { setEditing(item); setDraftName(item.zone.label); } },
+    { text: t('library.delete'), style: 'destructive', onPress: () => Alert.alert(t('library.deleteTitle'), item.zone.label, [{ text: t('common.cancel'), style: 'cancel' }, { text: t('library.delete'), style: 'destructive', onPress: () => { deleteGribDataset(item); refresh(); } }]) },
+    { text: t('common.cancel'), style: 'cancel' },
   ]);
 
   const rename = () => {
     if (!editing) return;
     try { renameGribDataset(editing, draftName); setEditing(null); refresh(); }
-    catch (error) { Alert.alert('Nom invalide', error instanceof Error ? error.message : 'Impossible de renommer.'); }
+    catch (error) { Alert.alert(t('error.invalidName'), error instanceof Error ? localizeTechnicalMessage(error.message, language) : t('error.rename')); }
   };
 
   return <View style={styles.screen}>
-    <View style={styles.appBar}><View style={styles.logo}><MaterialIcons name="air" size={25} color="#FFFFFF" /></View><View><Text style={styles.brand}>Gribzy</Text><Text style={styles.tagline}>La météo à emporter</Text></View></View>
+    <View style={styles.appBar}><View style={styles.logo}><MaterialIcons name="air" size={25} color="#FFFFFF" /></View><View><Text style={styles.brand}>Gribzy</Text><Text style={styles.tagline}>{t('library.tagline')}</Text></View></View>
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.hero}><Text style={styles.heroTitle}>Prêt à partir ?</Text><Text style={styles.heroText}>Ouvre une prévision GRIB, même loin du réseau.</Text></View>
+      <View style={styles.hero}><Text style={styles.heroTitle}>{t('library.heroTitle')}</Text><Text style={styles.heroText}>{t('library.heroText')}</Text></View>
       <Pressable style={styles.primary} onPress={openFile} disabled={importing} android_ripple={{ color: '#669DF6' }}>
         {importing ? <ActivityIndicator color="#FFFFFF" /> : <MaterialIcons name="folder-open" size={24} color="#FFFFFF" />}
-        <Text style={styles.primaryText}>{importing ? 'Ouverture…' : 'Ouvrir un fichier GRIB'}</Text>
+        <Text style={styles.primaryText}>{importing ? t('library.opening') : t('library.open')}</Text>
       </Pressable>
-      <Pressable style={styles.secondary} onPress={() => router.push('/select')}><MaterialIcons name="download" size={21} color="#1967D2" /><Text style={styles.secondaryText}>Télécharger une zone</Text></Pressable>
-      <Text style={styles.sectionTitle}>Fichiers récents</Text>
-      {datasets.length === 0 ? <View style={styles.empty}><MaterialIcons name="insert-drive-file" size={32} color="#9AA0A6" /><Text style={styles.emptyTitle}>Aucun fichier</Text><Text style={styles.emptyText}>Ouvre un GRIB existant ou télécharge une zone pour commencer.</Text></View> : datasets.map((item) => <Pressable key={item.id} style={styles.row} onPress={() => router.push({ pathname: '/map', params: { file: item.fileName } })} android_ripple={{ color: '#E8F0FE' }}>
+      <Pressable style={styles.secondary} onPress={() => router.push('/select')}><MaterialIcons name="download" size={21} color="#1967D2" /><Text style={styles.secondaryText}>{t('library.download')}</Text></Pressable>
+      <Text style={styles.sectionTitle}>{t('library.recent')}</Text>
+      {datasets.length === 0 ? <View style={styles.empty}><MaterialIcons name="insert-drive-file" size={32} color="#9AA0A6" /><Text style={styles.emptyTitle}>{t('library.emptyTitle')}</Text><Text style={styles.emptyText}>{t('library.emptyText')}</Text></View> : datasets.map((item) => <Pressable key={item.id} style={styles.row} onPress={() => router.push({ pathname: '/map', params: { file: item.fileName } })} android_ripple={{ color: '#E8F0FE' }}>
         <View style={styles.fileIcon}><MaterialIcons name="insert-drive-file" size={18} color="#1967D2" /></View>
-        <View style={styles.fileCopy}><Text style={styles.fileName} numberOfLines={1}>{item.zone.label}</Text><Text style={styles.fileMeta}>{item.model} · {formatFileSize(item.fileSize)} · {item.runHour === '--' ? 'origine inconnue' : `run ${item.runDate} ${item.runHour} UTC`}</Text><Text style={styles.fileDate}>Téléchargé {formatDate(item.downloadedAt)}</Text></View>
+        <View style={styles.fileCopy}><Text style={styles.fileName} numberOfLines={1}>{item.zone.label}</Text><Text style={styles.fileMeta}>{item.model} · {formatFileSize(item.fileSize, language)} · {item.runHour === '--' ? t('library.unknownSource') : `run ${item.runDate} ${item.runHour} UTC`}</Text><Text style={styles.fileDate}>{t('library.downloaded', { date: formatDate(item.downloadedAt, language) })}</Text></View>
         <Pressable hitSlop={8} style={styles.more} onPress={() => menu(item)}><MaterialIcons name="more-vert" size={24} color="#5F6368" /></Pressable>
       </Pressable>)}
     </ScrollView>
     <AppTabBar active="files" mapFile={datasets[0]?.fileName} />
-    <Modal visible={!!editing} transparent animationType="fade" onRequestClose={() => setEditing(null)}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}><View style={styles.dialog}><Text style={styles.dialogTitle}>Renommer le fichier</Text><TextInput autoFocus value={draftName} onChangeText={setDraftName} maxLength={80} style={styles.input} /><View style={styles.dialogActions}><Pressable style={styles.textButton} onPress={() => setEditing(null)}><Text>Annuler</Text></Pressable><Pressable style={styles.save} onPress={rename}><Text style={styles.saveText}>Enregistrer</Text></Pressable></View></View></KeyboardAvoidingView></Modal>
+    <Modal visible={!!editing} transparent animationType="fade" onRequestClose={() => setEditing(null)}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}><View style={styles.dialog}><Text style={styles.dialogTitle}>{t('library.renameTitle')}</Text><TextInput autoFocus value={draftName} onChangeText={setDraftName} maxLength={80} style={styles.input} /><View style={styles.dialogActions}><Pressable style={styles.textButton} onPress={() => setEditing(null)}><Text>{t('common.cancel')}</Text></Pressable><Pressable style={styles.save} onPress={rename}><Text style={styles.saveText}>{t('common.save')}</Text></Pressable></View></View></KeyboardAvoidingView></Modal>
   </View>;
 }
 
