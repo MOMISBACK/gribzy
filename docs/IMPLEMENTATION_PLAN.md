@@ -61,6 +61,7 @@ Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des
 | STORE-103 — catalogue versionné | Implémenté, validation native requise | Ouvrir un catalogue 1.1 réel puis vérifier sa réécriture |
 | I18N-107 — anglais/français | Implémenté, validation appareil requise | Locale téléphone, persistance et changement à chaud sur Android/iOS |
 | QA-108 — recrutement public | Implémenté, publication requise | GitHub Pages déployée et première candidature reçue |
+| UX-109 — défauts appareil alpha | Implémenté, validation appareil requise | Safe area, GPS, synchronisation overlay, chargement carte et icône sur APK |
 | CORE-104 — service de décodage | À faire | Fixture décodée hors écran |
 | MAP-105 — alignement | À faire | Tests de projection et contrôle appareil |
 | QA-106 — parcours automatisé | À faire | Outil E2E choisi et scénario critique exécuté |
@@ -204,6 +205,20 @@ pour une autre locale, puis conserve chaque choix manuel après fermeture compl�
 - appel principal vers un formulaire GitHub structuré ;
 - objectifs de test Android et avertissement de sécurité explicites ;
 - déploiement automatique du dossier `site/` depuis `main`.
+
+### UX-109 — corriger les défauts observés sur Android
+
+**État : implémenté le 23 juillet 2026, validation APK en attente.**
+
+- barre d'onglets et panneaux inférieurs positionnés au-dessus de la safe area ;
+- point GPS MapLibre visible après permission ;
+- overlay météo masqué pendant le geste puis reprojeté sur les bornes finales ;
+- fond neutre au chargement de la sélection, Natural Earth seulement en fallback ;
+- premier plan d'icône Android réduit pour résister aux différents masques launcher.
+
+**Acceptation :** aucun chevauchement avec la navigation système, point GPS visible
+dans la zone affichée, aucune dérive météo pendant un pan, aucun flash Natural Earth
+en ligne et ours non rogné sur le launcher cible.
 
 ## Décision anticipée — carte hors ligne
 

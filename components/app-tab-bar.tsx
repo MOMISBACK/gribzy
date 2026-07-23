@@ -2,11 +2,13 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '@/lib/i18n';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Tab = 'files' | 'map' | 'settings';
 
 export function AppTabBar({ active, mapFile }: { active: Tab; mapFile?: string }) {
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
   const tabs: { id: Tab; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
     { id: 'files', label: t('nav.files'), icon: 'folder' },
     { id: 'map', label: t('nav.map'), icon: 'map' },
@@ -19,7 +21,7 @@ export function AppTabBar({ active, mapFile }: { active: Tab; mapFile?: string }
     if (tab === 'map' && mapFile) router.replace({ pathname: '/map', params: { file: mapFile } });
   };
 
-  return <View style={styles.bar}>{tabs.map((tab) => {
+  return <View style={[styles.bar, { bottom: Math.max(10, insets.bottom + 6) }]}>{tabs.map((tab) => {
     const disabled = tab.id === 'map' && !mapFile && active !== 'map';
     const selected = active === tab.id;
     return <Pressable key={tab.id} disabled={disabled} accessibilityRole="tab" accessibilityState={{ selected, disabled }} onPress={() => navigate(tab.id)} style={styles.tab} android_ripple={{ color: '#D5E3FF', borderless: true }}>
@@ -30,7 +32,7 @@ export function AppTabBar({ active, mapFile }: { active: Tab; mapFile?: string }
 }
 
 const styles = StyleSheet.create({
-  bar: { position: 'absolute', zIndex: 30, left: 12, right: 12, bottom: 10, height: 68, flexDirection: 'row', backgroundColor: 'rgba(248,249,250,0.96)', borderRadius: 22, paddingHorizontal: 4, paddingVertical: 5, elevation: 8, shadowColor: '#202124', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
+  bar: { position: 'absolute', zIndex: 30, left: 12, right: 12, height: 68, flexDirection: 'row', backgroundColor: 'rgba(248,249,250,0.96)', borderRadius: 22, paddingHorizontal: 4, paddingVertical: 5, elevation: 8, shadowColor: '#202124', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
   tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 16 },
   iconPill: { width: 64, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   iconPillActive: { backgroundColor: '#D8E6FF' },

@@ -29,6 +29,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import * as Location from 'expo-location';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 
 const LAND_RINGS_WITH_BOUNDS = WORLD_LAND_RINGS.map((ring) => ({
@@ -41,6 +43,7 @@ const LAND_RINGS_WITH_BOUNDS = WORLD_LAND_RINGS.map((ring) => ({
 
 export default function MapScreen() {
   const { language, t } = useI18n();
+  const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const mapWidth = window.width;
   const mapHeight = Math.max(240, window.height);
@@ -72,6 +75,8 @@ export default function MapScreen() {
     windDir: string;
   } | null>(null);
   const [onlineMapAvailable, setOnlineMapAvailable] = useState(false);
+  const [mapMoving, setMapMoving] = useState(false);
+  const [locationPermission, setLocationPermission] = useState(false);
   const [activeParameter, setActiveParameter] = useState<'pressure' | 'wind'>('pressure');
   const [sheet, setSheet] = useState<'parameter' | 'layers' | 'info' | null>(null);
   const [showIsobares, setShowIsobares] = useState(true);
@@ -81,6 +86,12 @@ export default function MapScreen() {
   useEffect(() => {
     if (dataset) setViewport([dataset.zone.leftlon, dataset.zone.bottomlat, dataset.zone.rightlon, dataset.zone.toplat]);
   }, [dataset]);
+
+  useEffect(() => {
+    void Location.requestForegroundPermissionsAsync()
+      .then(({ status: permissionStatus }) => setLocationPermission(permissionStatus === 'granted'))
+      .catch(() => setLocationPermission(false));
+  }, []);
 
   const projectLatitude = useCallback((latitude: number) => {
     if (!viewport) return 0;
@@ -369,7 +380,9 @@ export default function MapScreen() {
                 north={dataset.zone.toplat}
                 onAvailabilityChange={setOnlineMapAvailable}
                 onViewportChange={(bounds) => { setViewport(bounds); setTouched(null); }}
+                onInteractionChange={setMapMoving}
                 onMapPress={(longitude, latitude) => inspectAt(longitude, latitude, projectLongitude(longitude), projectLatitude(latitude))}
+                showUserLocation={locationPermission}
               />
             )}
             <Svg
@@ -377,6 +390,7 @@ export default function MapScreen() {
               height={mapHeight}
               onPress={handleMapPress}
               pointerEvents={onlineMapAvailable ? 'none' : 'auto'}
+              style={mapMoving ? styles.weatherOverlayHidden : undefined}
             >
               {showIsobares && renderIsobares()}
               {showWind && renderWind()}
@@ -413,14 +427,14 @@ export default function MapScreen() {
               <MaterialIcons name="info-outline" size={24} color="#1967D2" />
             </Pressable>
 
-            <View style={styles.timeline} accessibilityLabel={t('map.timelineA11y')}>
+            <View style={[styles.timeline, { bottom: 88 + insets.bottom }]} accessibilityLabel={t('map.timelineA11y')}>
               <View style={styles.timelinePlay}><MaterialIcons name="play-arrow" size={22} color="#9AA0A6" /></View>
               <View style={styles.timelineCopy}><View style={styles.timelineLabels}><Text style={styles.timelineHour}>H+0</Text><Text style={styles.timelineOnly}>{t('map.oneForecast')}</Text></View><View style={styles.timelineTrack}><View style={styles.timelineDot} /></View></View>
               <MaterialIcons name="expand-less" size={22} color="#9AA0A6" />
             </View>
 
             {touched && (
-              <View style={styles.infoPanel}>
+              <View style={[styles.infoPanel, { bottom: 166 + insets.bottom }]}>
                 <View style={styles.infoHeader}><Text style={styles.infoPlace} numberOfLines={1}>{dataset?.zone.label ?? t('map.weatherPoint')}</Text><Pressable accessibilityLabel={t('map.close')} hitSlop={10} onPress={() => setTouched(null)}><MaterialIcons name="close" size={22} color="#5F6368" /></Pressable></View>
                 <View style={styles.infoMetrics}><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.wind')}</Text><Text style={styles.infoWind}>{touched.windSpeed.toFixed(0)} kt {touched.windDir}</Text></View><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.pressure')}</Text><Text style={styles.infoPressure}>{touched.pressure.toFixed(1)} hPa</Text></View></View>
               </View>
@@ -535,7 +549,6 @@ const styles = StyleSheet.create({
   infoPanel: {
     position: 'absolute',
     zIndex: 14,
-    bottom: 168,
     left: 16,
     right: 16,
     backgroundColor: 'rgba(255,255,255,0.97)',
@@ -563,7 +576,8 @@ const styles = StyleSheet.create({
   },
   layersButton: { position: 'absolute', top: 50, right: 16, width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.96)', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 8 },
   infoButton: { position: 'absolute', top: 110, right: 16, width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.96)', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 8 },
-  timeline: { position: 'absolute', zIndex: 12, left: 16, right: 16, bottom: 90, minHeight: 66, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.95)', elevation: 5, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  weatherOverlayHidden: { opacity: 0 },
+  timeline: { position: 'absolute', zIndex: 12, left: 16, right: 16, minHeight: 66, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.95)', elevation: 5, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   timelinePlay: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F3F4', alignItems: 'center', justifyContent: 'center' },
   timelineCopy: { flex: 1, gap: 7 },
   timelineLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

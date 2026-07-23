@@ -93,6 +93,12 @@ OpenFreeMap est chargé par MapLibre sur iOS et Android. L'attribution reste vis
 L'overlay SVG reçoit les bornes Web Mercator visibles afin d'aligner projection,
 inspection, pan et pincement.
 
+Le point GPS natif MapLibre est affiché lorsque la permission foreground est accordée.
+Pendant une interaction de caméra, l'overlay météo SVG est masqué puis réaffiché avec
+les bornes finales afin d'éviter toute dérive visuelle entre deux moteurs de rendu.
+La sélection native présente un fond neutre pendant le chargement d'OpenFreeMap et
+n'affiche Natural Earth qu'après un échec réel du fond en ligne.
+
 Aucun appel direct à `tile.openstreetmap.org`, préchargement massif ou aspiration de
 tuiles publiques n'est autorisé.
 
@@ -109,7 +115,8 @@ expiration et contrôle utilisateur avant implémentation.
 - iOS : bundle `com.gribzy.app`, tablette autorisée.
 - Version actuelle : 1.1.0, Android versionCode 2.
 - Branding : `assets/images/gribzy-bear-source.png` comme source, `icon.png` comme
-  version 1024 px à marge de sécurité.
+  version générale et `adaptive-foreground.png` comme premier plan Android à marge
+  de sécurité renforcée.
 - EAS `development` : client de développement APK.
 - EAS `preview` : APK autonome.
 - EAS `production` : AAB.
@@ -136,7 +143,7 @@ La commande de référence est :
 npm run check
 ```
 
-Elle exécute lint, TypeScript et les tests Vitest. Les dix-sept tests actuels couvrent
+Elle exécute lint, TypeScript et les tests Vitest. Les vingt-deux tests actuels couvrent
 l'état réseau, la transaction, les métadonnées et le parseur. La fixture NOAA valide trois
 messages, la grille, le packing, des valeurs plausibles, la paire de vent et les
 isobares.

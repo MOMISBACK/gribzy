@@ -1,6 +1,6 @@
 import { Camera, GeoJSONSource, Layer, Map, type ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { FeatureCollection, Polygon } from 'geojson';
 
 import { describeLocation } from '@/lib/geoNames';
@@ -39,6 +39,7 @@ function zoneAt(latitude: number, longitude: number, span: number, language: 'en
 export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePickerMapProps) {
   const { language, t } = useI18n();
   const [mapReady, setMapReady] = useState(false);
+  const [mapFailed, setMapFailed] = useState(false);
   const center: [number, number] = [(zone.leftlon + zone.rightlon) / 2, (zone.bottomlat + zone.toplat) / 2];
   const zoneShape = useMemo<FeatureCollection<Polygon>>(() => ({
     type: 'FeatureCollection',
@@ -63,7 +64,9 @@ export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePi
   };
 
   return <View style={styles.frame}>
-    <EmbeddedZonePickerMap zone={zone} span={span} focusRequest={focusRequest} onChange={onChange} />
+    {mapFailed
+      ? <EmbeddedZonePickerMap zone={zone} span={span} focusRequest={focusRequest} onChange={onChange} />
+      : <View style={styles.loadingMap}><ActivityIndicator color="#1967D2" /></View>}
     <View pointerEvents={mapReady ? 'auto' : 'none'} style={[styles.onlineMap, !mapReady && styles.onlineMapLoading]}>
       <Map
         mapStyle={OPEN_FREE_MAP_STYLE}
@@ -75,8 +78,8 @@ export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePi
         touchRotate={false}
         touchPitch={false}
         onRegionDidChange={handleRegionChange}
-        onDidFinishLoadingMap={() => setMapReady(true)}
-        onDidFailLoadingMap={() => setMapReady(false)}
+        onDidFinishLoadingMap={() => { setMapReady(true); setMapFailed(false); }}
+        onDidFailLoadingMap={() => { setMapReady(false); setMapFailed(true); }}
         style={styles.map}
       >
         <Camera
@@ -95,6 +98,7 @@ export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePi
 
 const styles = StyleSheet.create({
   frame: { flex: 1, overflow: 'hidden', backgroundColor: '#DCECF4' },
+  loadingMap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EDF3F8' },
   onlineMap: { ...StyleSheet.absoluteFillObject },
   onlineMapLoading: { opacity: 0 },
   map: { flex: 1 },

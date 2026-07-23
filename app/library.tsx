@@ -7,9 +7,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LibraryScreen() {
   const { language, t } = useI18n();
+  const insets = useSafeAreaInsets();
   const [datasets, setDatasets] = useState<GribDataset[]>([]);
   const [editing, setEditing] = useState<GribDataset | null>(null);
   const [draftName, setDraftName] = useState('');
@@ -44,7 +46,7 @@ export default function LibraryScreen() {
 
   return <View style={styles.screen}>
     <View style={styles.appBar}><View style={styles.logo}><MaterialIcons name="air" size={25} color="#FFFFFF" /></View><View><Text style={styles.brand}>Gribzy</Text><Text style={styles.tagline}>{t('library.tagline')}</Text></View></View>
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 110 + insets.bottom }]}>
       <View style={styles.hero}><Text style={styles.heroTitle}>{t('library.heroTitle')}</Text><Text style={styles.heroText}>{t('library.heroText')}</Text></View>
       <Pressable style={styles.primary} onPress={openFile} disabled={importing} android_ripple={{ color: '#669DF6' }}>
         {importing ? <ActivityIndicator color="#FFFFFF" /> : <MaterialIcons name="folder-open" size={24} color="#FFFFFF" />}
@@ -64,7 +66,7 @@ export default function LibraryScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FFFFFF' }, appBar: { paddingTop: 48, paddingHorizontal: 20, height: 100, flexDirection: 'row', alignItems: 'center', gap: 12 }, logo: { width: 40, height: 40, borderRadius: 16, backgroundColor: '#1967D2', alignItems: 'center', justifyContent: 'center' }, brand: { color: '#202124', fontSize: 24, fontWeight: '700' }, tagline: { color: '#5F6368', fontSize: 12, marginTop: 1 }, content: { paddingHorizontal: 20, paddingBottom: 110 }, hero: { paddingTop: 10, paddingBottom: 22 }, heroTitle: { color: '#202124', fontSize: 30, lineHeight: 36, fontWeight: '700' }, heroText: { color: '#5F6368', fontSize: 15, lineHeight: 22, marginTop: 5 },
+  screen: { flex: 1, backgroundColor: '#FFFFFF' }, appBar: { paddingTop: 48, paddingHorizontal: 20, height: 100, flexDirection: 'row', alignItems: 'center', gap: 12 }, logo: { width: 40, height: 40, borderRadius: 16, backgroundColor: '#1967D2', alignItems: 'center', justifyContent: 'center' }, brand: { color: '#202124', fontSize: 24, fontWeight: '700' }, tagline: { color: '#5F6368', fontSize: 12, marginTop: 1 }, content: { paddingHorizontal: 20 }, hero: { paddingTop: 10, paddingBottom: 22 }, heroTitle: { color: '#202124', fontSize: 30, lineHeight: 36, fontWeight: '700' }, heroText: { color: '#5F6368', fontSize: 15, lineHeight: 22, marginTop: 5 },
   primary: { minHeight: 60, borderRadius: 18, backgroundColor: '#1967D2', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, overflow: 'hidden', elevation: 2 }, primaryText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' }, secondary: { alignSelf: 'center', minHeight: 48, borderRadius: 16, marginTop: 8, paddingHorizontal: 16, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: '#1967D2', fontSize: 15, fontWeight: '700' }, sectionTitle: { color: '#202124', fontSize: 19, fontWeight: '700', marginTop: 22, marginBottom: 8 },
   row: { minHeight: 78, borderRadius: 16, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, overflow: 'hidden' }, fileIcon: { width: 38, height: 38, borderRadius: 14, backgroundColor: '#E8F0FE', alignItems: 'center', justifyContent: 'center' }, fileCopy: { flex: 1, paddingHorizontal: 12 }, fileName: { color: '#202124', fontSize: 16, fontWeight: '600' }, fileMeta: { color: '#5F6368', fontSize: 12, marginTop: 3 }, fileDate: { color: '#80868B', fontSize: 11, marginTop: 2 }, more: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
   empty: { alignItems: 'center', padding: 28, borderRadius: 16, backgroundColor: '#F8F9FA' }, emptyTitle: { color: '#202124', fontSize: 17, fontWeight: '700', marginTop: 10 }, emptyText: { color: '#5F6368', fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 6 }, overlay: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(32,33,36,0.32)' }, dialog: { borderRadius: 28, backgroundColor: '#FFFFFF', padding: 24 }, dialogTitle: { fontSize: 21, fontWeight: '700', color: '#202124' }, input: { minHeight: 56, borderRadius: 16, borderWidth: 1, borderColor: '#9AA0A6', paddingHorizontal: 16, fontSize: 16, marginTop: 20 }, dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 20 }, textButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16 }, save: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 16, backgroundColor: '#1967D2' }, saveText: { color: '#FFFFFF', fontWeight: '700' },

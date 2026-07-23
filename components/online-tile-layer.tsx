@@ -10,6 +10,8 @@ type Props = {
   onAvailabilityChange?: (available: boolean) => void;
   onViewportChange?: (bounds: [number, number, number, number]) => void;
   onMapPress?: (longitude: number, latitude: number) => void;
+  onInteractionChange?: (moving: boolean) => void;
+  showUserLocation?: boolean;
 };
 
 // Le web et Expo Go conservent le fond embarqué : aucun appel direct aux serveurs
