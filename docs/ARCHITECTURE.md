@@ -46,6 +46,11 @@ natif. Le web utilise les variantes génériques des composants.
 - `.github/workflows/pages.yml` : publication du dossier `site/` sur GitHub Pages.
 - `.github/ISSUE_TEMPLATE/beta-tester.yml` : candidature publique sans collecte d'e-mail.
 
+Le dépôt doit avoir `Settings → Pages → Source: GitHub Actions` activé une fois par
+un administrateur. Le workflow n'essaie pas de contourner cette étape avec
+`enablement: true`, car l'action exige alors un token d'administration distinct du
+`GITHUB_TOKEN` automatique.
+
 ## Stockage
 
 Chaque donnée locale comprend un fichier `.grib2` et un fichier `.json` adjacent.
