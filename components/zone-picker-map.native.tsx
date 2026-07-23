@@ -1,71 +1,32 @@
-import { Camera, GeoJSONSource, Layer, Map, type ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import type { FeatureCollection, Polygon } from 'geojson';
+import { Camera, Map, type ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
+import { useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { describeLocation } from '@/lib/geoNames';
+import { zoneFromVisibleBounds } from '@/lib/downloadZone';
 import type { GribZone } from '@/lib/gribTypes';
 import { useI18n } from '@/lib/i18n';
 import { EmbeddedZonePickerMap } from './embedded-zone-picker-map';
 
 const OPEN_FREE_MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
-const DOMAIN = { west: -180, east: 180, south: -85, north: 85 };
 
 interface ZonePickerMapProps {
   zone: GribZone;
-  span: number;
   focusRequest?: number;
   onChange: (zone: GribZone) => void;
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function zoneAt(latitude: number, longitude: number, span: number, language: 'en' | 'fr'): GribZone {
-  const halfWidth = span / 2;
-  const halfHeight = span / 4;
-  const centerLon = clamp(longitude, DOMAIN.west + halfWidth, DOMAIN.east - halfWidth);
-  const centerLat = clamp(latitude, DOMAIN.south + halfHeight, DOMAIN.north - halfHeight);
-  return {
-    label: describeLocation(centerLat, centerLon, language),
-    leftlon: Number((centerLon - halfWidth).toFixed(1)),
-    rightlon: Number((centerLon + halfWidth).toFixed(1)),
-    bottomlat: Number((centerLat - halfHeight).toFixed(1)),
-    toplat: Number((centerLat + halfHeight).toFixed(1)),
-  };
-}
-
-export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePickerMapProps) {
-  const { language, t } = useI18n();
+export function ZonePickerMap({ zone, focusRequest = 0, onChange }: ZonePickerMapProps) {
+  const { language } = useI18n();
   const [mapReady, setMapReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
-  const center: [number, number] = [(zone.leftlon + zone.rightlon) / 2, (zone.bottomlat + zone.toplat) / 2];
-  const zoneShape = useMemo<FeatureCollection<Polygon>>(() => ({
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [zone.leftlon, zone.bottomlat], [zone.rightlon, zone.bottomlat],
-          [zone.rightlon, zone.toplat], [zone.leftlon, zone.toplat],
-          [zone.leftlon, zone.bottomlat],
-        ]],
-      },
-    }],
-  }), [zone.bottomlat, zone.leftlon, zone.rightlon, zone.toplat]);
 
   const handleRegionChange = (event: { nativeEvent: ViewStateChangeEvent }) => {
-    if (!event.nativeEvent.userInteraction) return;
-    const [longitude, latitude] = event.nativeEvent.center;
-    onChange(zoneAt(latitude, longitude, span, language));
+    onChange(zoneFromVisibleBounds(event.nativeEvent.bounds, language));
   };
 
   return <View style={styles.frame}>
     {mapFailed
-      ? <EmbeddedZonePickerMap zone={zone} span={span} focusRequest={focusRequest} onChange={onChange} />
+      ? <EmbeddedZonePickerMap zone={zone} focusRequest={focusRequest} onChange={onChange} />
       : <View style={styles.loadingMap}><ActivityIndicator color="#1967D2" /></View>}
     <View pointerEvents={mapReady ? 'auto' : 'none'} style={[styles.onlineMap, !mapReady && styles.onlineMapLoading]}>
       <Map
@@ -84,15 +45,15 @@ export function ZonePickerMap({ zone, span, focusRequest = 0, onChange }: ZonePi
       >
         <Camera
           key={`focus-${focusRequest}`}
-          initialViewState={{ center, zoom: Math.max(2, Math.min(10, Math.log2(360 / span) + 0.6)), bearing: 0, pitch: 0 }}
+          initialViewState={{
+            bounds: [zone.leftlon, zone.bottomlat, zone.rightlon, zone.toplat],
+            padding: { top: 0, right: 0, bottom: 0, left: 0 },
+            bearing: 0,
+            pitch: 0,
+          }}
         />
-        <GeoJSONSource id="selected-grib-zone" data={zoneShape}>
-          <Layer id="selected-grib-zone-fill" type="fill" paint={{ 'fill-color': '#1967D2', 'fill-opacity': 0.16 }} />
-          <Layer id="selected-grib-zone-line" type="line" paint={{ 'line-color': '#1967D2', 'line-width': 3 }} />
-        </GeoJSONSource>
       </Map>
     </View>
-    {mapReady && <View pointerEvents="none" style={styles.help}><Text style={styles.helpText}>{t('gesture.online')}</Text></View>}
   </View>;
 }
 
@@ -102,6 +63,4 @@ const styles = StyleSheet.create({
   onlineMap: { ...StyleSheet.absoluteFillObject },
   onlineMapLoading: { opacity: 0 },
   map: { flex: 1 },
-  help: { position: 'absolute', left: 16, right: 16, top: 118, alignItems: 'center' },
-  helpText: { color: '#3C4043', backgroundColor: 'rgba(255,255,255,0.94)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, fontSize: 12, fontWeight: '600' },
 });

@@ -99,6 +99,12 @@ les bornes finales afin d'éviter toute dérive visuelle entre deux moteurs de r
 La sélection native présente un fond neutre pendant le chargement d'OpenFreeMap et
 n'affiche Natural Earth qu'après un échec réel du fond en ligne.
 
+Sur la sélection, `ViewStateChangeEvent.bounds` devient directement la bbox GRIB,
+arrondie au dixième de degré et limitée au domaine NOAA. Le fallback embarqué calcule
+la même bbox depuis son viewport. `lib/downloadZone.ts` estime le nombre de points de
+grille GFS 0,25° et bloque une vue dépassant 10 000 points ; les anciennes tailles
+fixes 6/10/20° et les bulles d'aide ont été supprimées.
+
 Aucun appel direct à `tile.openstreetmap.org`, préchargement massif ou aspiration de
 tuiles publiques n'est autorisé.
 
@@ -143,7 +149,7 @@ La commande de référence est :
 npm run check
 ```
 
-Elle exécute lint, TypeScript et les tests Vitest. Les vingt-deux tests actuels couvrent
+Elle exécute lint, TypeScript et les tests Vitest. Les vingt-quatre tests actuels couvrent
 l'état réseau, la transaction, les métadonnées et le parseur. La fixture NOAA valide trois
 messages, la grille, le packing, des valeurs plausibles, la paire de vent et les
 isobares.

@@ -24,6 +24,8 @@ const en = {
   'select.offline': 'Offline', 'select.offlineText': 'A connection is required to download. Your saved GRIB files remain available.',
   'select.connectionRequired': 'Connection required', 'select.download': 'Download this area', 'select.connecting': 'Connecting…',
   'select.unknownError': 'An unknown error occurred', 'select.connectionError': 'A connection is required to download a new forecast.',
+  'select.visibleArea': 'The visible map is the download area', 'select.zoomIn': 'Zoom in to download',
+  'select.zoomInDetail': 'This area is too large for a reliable GRIB download. Zoom in on the map.',
   'map.loading': 'Loading…', 'map.reading': 'Reading…', 'map.decoding': 'Decoding…', 'map.error': 'Error: {message}',
   'map.unreadable': 'Unreadable data', 'map.noFile': 'No file selected', 'map.notFound': 'Local data not found',
   'map.pressureMissing': 'Pressure message not found', 'map.parameterA11y': 'Choose weather parameter',
@@ -45,8 +47,6 @@ const en = {
   'settings.about': 'About', 'settings.version': 'Version', 'settings.account': 'Account and tracking',
   'settings.accountDescription': 'No sign-up, no profiling', 'settings.none': 'None', 'settings.offlineMode': 'Offline mode',
   'settings.included': 'Included', 'settings.hint': 'Units and advanced options will be enabled when they actually affect the display.',
-  'gesture.embedded': '1 finger: move · 2 fingers: zoom · tap: select',
-  'gesture.online': 'Move the map to position the frame · pinch to zoom',
 } as const;
 
 type TranslationKey = keyof typeof en;
@@ -67,6 +67,8 @@ const fr: Record<TranslationKey, string> = {
   'select.offline': 'Hors ligne', 'select.offlineText': 'Connexion requise pour télécharger. Tes GRIB enregistrés restent disponibles.',
   'select.connectionRequired': 'Connexion requise', 'select.download': 'Télécharger cette zone', 'select.connecting': 'Connexion…',
   'select.unknownError': 'Une erreur inconnue est survenue', 'select.connectionError': 'Connexion requise pour télécharger une nouvelle prévision.',
+  'select.visibleArea': 'La carte visible est la zone téléchargée', 'select.zoomIn': 'Zoomez pour télécharger',
+  'select.zoomInDetail': 'Cette zone est trop grande pour un téléchargement GRIB fiable. Zoomez sur la carte.',
   'map.loading': 'Chargement…', 'map.reading': 'Lecture…', 'map.decoding': 'Décodage…', 'map.error': 'Erreur : {message}',
   'map.unreadable': 'Donnée illisible', 'map.noFile': 'Aucun fichier sélectionné', 'map.notFound': 'Donnée locale introuvable',
   'map.pressureMissing': 'Message pression non trouvé', 'map.parameterA11y': 'Choisir le paramètre météo',
@@ -88,8 +90,6 @@ const fr: Record<TranslationKey, string> = {
   'settings.about': 'À propos', 'settings.version': 'Version', 'settings.account': 'Compte et suivi',
   'settings.accountDescription': 'Aucune inscription, aucun profilage', 'settings.none': 'Aucun', 'settings.offlineMode': 'Mode hors ligne',
   'settings.included': 'Inclus', 'settings.hint': 'Les unités et options avancées seront activées lorsqu’elles modifieront réellement le rendu.',
-  'gesture.embedded': '1 doigt : déplacer · 2 doigts : zoomer · toucher : choisir',
-  'gesture.online': 'Déplace la carte pour placer le cadre · pince pour zoomer',
 };
 
 function loadPreference(): LanguagePreference {

@@ -84,7 +84,12 @@ suppression confirmée.
 
 Le parcours reste progressif : zone, modèle, résolution, durée, paramètres, puis
 téléchargement. Une étape n'apparaît que lorsqu'elle fonctionne réellement. Dans le
-MVP actuel, seul GFS avec un périmètre fixe est disponible.
+MVP actuel, seul GFS avec une résolution et des paramètres fixes est disponible.
+
+La zone téléchargée correspond aux limites visibles de la carte : déplacer et pincer
+la carte modifie directement la bbox, sans sélecteur de taille parallèle. Lorsque la
+vue est trop large pour une requête GFS fiable, l'action demande de zoomer plutôt que
+de lancer silencieusement un téléchargement excessif.
 
 ### Carte
 
@@ -165,7 +170,7 @@ puis en mode avion.
 | --- | --- | --- | --- |
 | Navigation | Terminé | Fichiers, Carte, Réglages ; barre flottante | Validation d'accessibilité réelle |
 | Bibliothèque | Terminé | Import, liste, noms, ouverture, renommage, suppression, migration versionnée | Gros catalogue et migration à tester sur appareil |
-| Sélection | Terminé | Monde, pan, pincement, cadre, tailles, GPS | Validation tactile réelle |
+| Sélection | Terminé | Monde, pan, pincement, bbox égale au viewport, GPS | Validation tactile réelle |
 | Téléchargement | Partiel | Dernier run NOAA GFS, non destructif, état hors ligne explicite | Options fixes et comportement réseau à valider sur appareil |
 | Lecture GRIB | Partiel | Pression, isobares et vent 10 m | Uniquement `f000` et encodage ciblé |
 | Carte en ligne | Terminé | OpenFreeMap/MapLibre avec attribution | Validation sur APK |

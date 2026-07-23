@@ -62,6 +62,7 @@ Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des
 | I18N-107 — anglais/français | Implémenté, validation appareil requise | Locale téléphone, persistance et changement à chaud sur Android/iOS |
 | QA-108 — recrutement public | Implémenté, publication requise | GitHub Pages déployée et première candidature reçue |
 | UX-109 — défauts appareil alpha | Implémenté, validation appareil requise | Safe area, GPS, synchronisation overlay, chargement carte et icône sur APK |
+| UX-110 — zone égale au viewport | Implémenté, validation appareil requise | Bbox visible et seuil de taille vérifiés sur APK |
 | CORE-104 — service de décodage | À faire | Fixture décodée hors écran |
 | MAP-105 — alignement | À faire | Tests de projection et contrôle appareil |
 | QA-106 — parcours automatisé | À faire | Outil E2E choisi et scénario critique exécuté |
@@ -219,6 +220,19 @@ pour une autre locale, puis conserve chaque choix manuel après fermeture compl�
 **Acceptation :** aucun chevauchement avec la navigation système, point GPS visible
 dans la zone affichée, aucune dérive météo pendant un pan, aucun flash Natural Earth
 en ligne et ours non rogné sur le launcher cible.
+
+### UX-110 — télécharger exactement la carte visible
+
+**État : implémenté le 23 juillet 2026, validation APK en attente.**
+
+- bbox GRIB synchronisée avec les limites visibles après pan ou pincement ;
+- suppression des choix 6/10/20° et du cadre de taille indépendant ;
+- recentrage GPS conservant un cadrage local initial ;
+- téléchargement bloqué au-dessus de 10 000 points GFS estimés ;
+- message invitant à zoomer et suppression des bulles gestuelles.
+
+**Acceptation :** la bbox affichée avant téléchargement correspond au viewport final,
+le bouton se réactive après un zoom suffisant et le GRIB ouvert couvre cette bbox.
 
 ## Décision anticipée — carte hors ligne
 
