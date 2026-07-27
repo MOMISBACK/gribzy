@@ -1,6 +1,6 @@
-import type { GribDataset, GribParameterId, GribZone } from './gribTypes';
+import type { ForecastFrameDescriptor, GribDataset, GribParameterId, GribZone } from './gribTypes';
 
-export const CURRENT_DATASET_SCHEMA = 2 as const;
+export const CURRENT_DATASET_SCHEMA = 3 as const;
 
 export type DatasetMetadataResult =
   | { success: true; dataset: GribDataset; migrated: boolean }
@@ -53,16 +53,61 @@ function readForecastHours(value: unknown): number[] | null {
   return [...new Set(value as number[])].sort((a, b) => a - b);
 }
 
+function safeGribFileName(value: unknown): value is string {
+  return validString(value) && !value.includes('/') && !value.includes('\\') && /\.grib2?$/i.test(value);
+}
+
+function validIsoDate(value: unknown): value is string {
+  return validString(value) && Number.isFinite(Date.parse(value));
+}
+
+function validTimeFor(runDate: string, runHour: string, forecastHour: number, fallback: number): string {
+  if (/^\d{8}$/.test(runDate) && /^\d{2}$/.test(runHour)) {
+    const date = new Date(Date.UTC(
+      Number(runDate.slice(0, 4)),
+      Number(runDate.slice(4, 6)) - 1,
+      Number(runDate.slice(6, 8)),
+      Number(runHour),
+    ));
+    date.setUTCHours(date.getUTCHours() + forecastHour);
+    if (Number.isFinite(date.getTime())) return date.toISOString();
+  }
+  return new Date(fallback).toISOString();
+}
+
+function readFrames(value: unknown): ForecastFrameDescriptor[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const frames: ForecastFrameDescriptor[] = [];
+  for (const candidate of value) {
+    if (!isRecord(candidate) || !Number.isInteger(candidate.forecastHour) ||
+        (candidate.forecastHour as number) < 0 || !validIsoDate(candidate.validTime) ||
+        !validString(candidate.sourceId) || !safeGribFileName(candidate.sourceFileId)) return null;
+    const messageIndexes = candidate.messageIndexes;
+    if (messageIndexes !== undefined && (!Array.isArray(messageIndexes) ||
+        !messageIndexes.every(item => Number.isInteger(item) && item >= 0))) return null;
+    frames.push({
+      forecastHour: candidate.forecastHour as number,
+      validTime: candidate.validTime,
+      sourceId: candidate.sourceId,
+      sourceFileId: candidate.sourceFileId,
+      ...(messageIndexes ? { messageIndexes: messageIndexes as number[] } : {}),
+    });
+  }
+  frames.sort((a, b) => a.forecastHour - b.forecastHour);
+  if (new Set(frames.map(frame => frame.forecastHour)).size !== frames.length) return null;
+  return frames;
+}
+
 export function decodeDatasetMetadata(value: unknown): DatasetMetadataResult {
   if (!isRecord(value)) return { success: false, reason: 'Malformed metadata' };
-  if (value.schemaVersion !== undefined && value.schemaVersion !== CURRENT_DATASET_SCHEMA) {
+  if (value.schemaVersion !== undefined && value.schemaVersion !== 2 && value.schemaVersion !== CURRENT_DATASET_SCHEMA) {
     return { success: false, reason: `Unsupported metadata version (${String(value.schemaVersion)})` };
   }
 
   if (!validString(value.id) || !validString(value.fileName)) {
     return { success: false, reason: 'Missing identifier or file' };
   }
-  if (value.fileName.includes('/') || value.fileName.includes('\\') || !/\.grib2?$/i.test(value.fileName)) {
+  if (!safeGribFileName(value.fileName)) {
     return { success: false, reason: 'Unsafe file name' };
   }
 
@@ -79,6 +124,7 @@ export function decodeDatasetMetadata(value: unknown): DatasetMetadataResult {
   }
 
   const legacy = value.schemaVersion === undefined;
+  const previousSchema = value.schemaVersion === 2;
   const imported = value.runHour === '--';
   const parameters = legacy
     ? (imported ? ['pressure'] : ['pressure', 'wind']) as GribParameterId[]
@@ -93,18 +139,39 @@ export function decodeDatasetMetadata(value: unknown): DatasetMetadataResult {
     return { success: false, reason: 'Modèle ou résolution absent' };
   }
 
+  const sourceId = value.schemaVersion === CURRENT_DATASET_SCHEMA && validString(value.sourceId)
+    ? value.sourceId : value.id;
+  const effectiveForecastHours = value.schemaVersion === CURRENT_DATASET_SCHEMA
+    ? forecastHours : [forecastHours[0]];
+  const frames = value.schemaVersion === CURRENT_DATASET_SCHEMA
+    ? readFrames(value.frames)
+    : [{
+        forecastHour: effectiveForecastHours[0],
+        validTime: validTimeFor(value.runDate, value.runHour, effectiveForecastHours[0], value.downloadedAt),
+        sourceId,
+        sourceFileId: value.fileName,
+      }];
+  if (!frames) return { success: false, reason: 'Invalid forecast frames' };
+  if (frames.some(frame => frame.sourceId !== sourceId) ||
+      frames.map(frame => frame.forecastHour).join(',') !== effectiveForecastHours.join(',') ||
+      frames[0].sourceFileId !== value.fileName) {
+    return { success: false, reason: 'Inconsistent forecast manifest' };
+  }
+
   return {
     success: true,
-    migrated: legacy,
+    migrated: legacy || previousSchema,
     dataset: {
       schemaVersion: CURRENT_DATASET_SCHEMA,
       id: value.id,
       fileName: value.fileName,
+      sourceId,
+      frames,
       zone,
       model: model.trim(),
       resolution: resolution.trim(),
       parameters,
-      forecastHours,
+      forecastHours: effectiveForecastHours,
       runDate: value.runDate,
       runHour: value.runHour,
       downloadedAt: value.downloadedAt,

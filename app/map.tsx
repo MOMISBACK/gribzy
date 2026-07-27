@@ -2,21 +2,20 @@ import { WORLD_LAND_RINGS } from '@/assets/map/world-land';
 import { OnlineTileLayer } from '@/components/online-tile-layer';
 import { AppTabBar } from '@/components/app-tab-bar';
 import {
-  IsobareLine,
-  computeIsobares,
-  decodeValues,
-  findGribMessages,
-  readDataRepresentation,
-  readGridDefinition,
-  readMessageParameter,
+  GribValidationError,
+  bilinearInterpolate,
+  gridIndexToLatLon,
+  latLonToFractionalGridIndex,
 } from '@/lib/gribParser';
+import { decodeForecastFrame } from '@/lib/forecastFrame';
+import type { ForecastFrame } from '@/lib/forecastFrame';
 import type { GribDataset } from '@/lib/gribTypes';
 import { getDatasetFile, listGribDatasets } from '@/lib/storage';
 import { localizeTechnicalMessage, useI18n } from '@/lib/i18n';
 import { SpaceMono_400Regular, SpaceMono_700Bold, useFonts } from '@expo-google-fonts/space-mono';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   GestureResponderEvent,
@@ -32,6 +31,18 @@ import {
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
+
+function formatValidTime(validTime: string, language: 'en' | 'fr'): string {
+  return new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-GB', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  }).format(new Date(validTime));
+}
 
 const LAND_RINGS_WITH_BOUNDS = WORLD_LAND_RINGS.map((ring) => ({
   ring,
@@ -55,24 +66,16 @@ export default function MapScreen() {
     size: number;
     modified: number;
   } | null>(null);
-  const [gridData, setGridData] = useState<{
-    values: Float32Array;
-    ni: number;
-    nj: number;
-    min: number;
-    max: number;
-  } | null>(null);
-  const [isobares, setIsobares] = useState<Map<number, IsobareLine[]> | null>(null);
-  const [windData, setWindData] = useState<{
-    u: Float32Array;
-    v: Float32Array;
-  } | null>(null);
+  const [displayedFrame, setDisplayedFrame] = useState<ForecastFrame | null>(null);
+  const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+  const [pendingFrameIndex, setPendingFrameIndex] = useState<number | null>(null);
+  const frameCache = useRef(new Map<number, ForecastFrame>());
   const [touched, setTouched] = useState<{
     x: number;
     y: number;
-    pressure: number;
-    windSpeed: number;
-    windDir: string;
+    pressure?: number;
+    windSpeed?: number;
+    windDir?: string;
   } | null>(null);
   const [onlineMapAvailable, setOnlineMapAvailable] = useState(false);
   const [mapMoving, setMapMoving] = useState(false);
@@ -82,6 +85,18 @@ export default function MapScreen() {
   const [showIsobares, setShowIsobares] = useState(true);
   const [showWind, setShowWind] = useState(true);
   const [viewport, setViewport] = useState<[number, number, number, number] | null>(null);
+  const frameRequest = useRef(0);
+  const pressureData = displayedFrame?.pressure;
+  const windData = displayedFrame?.wind;
+  const frameGrid = pressureData?.grid ?? windData?.grid;
+  const isobares = pressureData?.isobares;
+  const currentDescriptor = dataset?.frames[currentFrameIndex];
+  const unavailableLayers = displayedFrame
+    ? [
+        !displayedFrame.availableLayers.pressure ? t('map.pressureUnavailable') : null,
+        !displayedFrame.availableLayers.wind ? t('map.windUnavailable') : null,
+      ].filter((value): value is string => value !== null)
+    : [];
 
   useEffect(() => {
     if (dataset) setViewport([dataset.zone.leftlon, dataset.zone.bottomlat, dataset.zone.rightlon, dataset.zone.toplat]);
@@ -127,20 +142,93 @@ export default function MapScreen() {
   }, [projectLatitude, projectLongitude, viewport]);
 
   const inspectAt = useCallback((longitude: number, latitude: number, x: number, y: number) => {
-    if (!gridData || !windData || !dataset) return;
-    const { ni, nj } = gridData;
-    const i = Math.floor(((longitude - dataset.zone.leftlon) / (dataset.zone.rightlon - dataset.zone.leftlon)) * ni);
-    const j = Math.floor(((dataset.zone.toplat - latitude) / (dataset.zone.toplat - dataset.zone.bottomlat)) * nj);
-    if (i < 0 || i >= ni || j < 0 || j >= nj) return;
-    const idx = (nj - 1 - j) * ni + i;
-    const pressure = gridData.values[idx];
-    const u = windData.u[idx];
-    const v = windData.v[idx];
-    const speedKt = Math.sqrt(u * u + v * v) * 1.94384;
-    const dirDeg = (Math.atan2(-u, -v) * 180 / Math.PI + 360) % 360;
-    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    setTouched({ x, y, pressure, windSpeed: speedKt, windDir: dirs[Math.round(dirDeg / 45) % 8] });
-  }, [dataset, gridData, windData]);
+    if (!displayedFrame) return;
+    let pressure: number | undefined;
+    let windSpeed: number | undefined;
+    let windDir: string | undefined;
+    if (displayedFrame.pressure) {
+      const { grid, values } = displayedFrame.pressure;
+      const index = latLonToFractionalGridIndex(latitude, longitude, grid);
+      if (index) pressure = bilinearInterpolate(values, grid.ni, grid.nj, index.i, index.j) ?? undefined;
+    }
+    if (displayedFrame.wind) {
+      const { grid, u, v } = displayedFrame.wind;
+      const index = latLonToFractionalGridIndex(latitude, longitude, grid);
+      if (index) {
+        const interpolatedU = bilinearInterpolate(u, grid.ni, grid.nj, index.i, index.j);
+        const interpolatedV = bilinearInterpolate(v, grid.ni, grid.nj, index.i, index.j);
+        if (interpolatedU !== null && interpolatedV !== null) {
+          windSpeed = Math.sqrt(interpolatedU ** 2 + interpolatedV ** 2) * 1.94384;
+          const direction = (Math.atan2(-interpolatedU, -interpolatedV) * 180 / Math.PI + 360) % 360;
+          const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+          windDir = directions[Math.round(direction / 45) % 8];
+        }
+      }
+    }
+    if (pressure === undefined && windSpeed === undefined) return;
+    setTouched({ x, y, pressure, windSpeed, windDir });
+  }, [displayedFrame]);
+
+  const readFrame = useCallback(async (metadata: GribDataset, index: number): Promise<ForecastFrame> => {
+    const cached = frameCache.current.get(index);
+    if (cached) return cached;
+    const descriptor = metadata.frames[index];
+    if (!descriptor) throw new Error('Forecast frame is unavailable');
+    const bytes = await getDatasetFile(descriptor.sourceFileId).bytes();
+    const decoded = await decodeForecastFrame(bytes, descriptor);
+    frameCache.current.set(index, decoded);
+    return decoded;
+  }, []);
+
+  const retainNeighborCache = useCallback((index: number) => {
+    for (const key of frameCache.current.keys()) {
+      if (Math.abs(key - index) > 1) frameCache.current.delete(key);
+    }
+  }, []);
+
+  const preloadNeighbors = useCallback((metadata: GribDataset, index: number) => {
+    for (const neighbor of [index - 1, index + 1]) {
+      if (neighbor < 0 || neighbor >= metadata.frames.length || frameCache.current.has(neighbor)) continue;
+      void readFrame(metadata, neighbor)
+        .then(() => retainNeighborCache(index))
+        .catch(error => {
+          frameCache.current.delete(neighbor);
+          if (__DEV__) console.warn(`Unable to preload forecast frame ${neighbor}`, error);
+        });
+    }
+  }, [readFrame, retainNeighborCache]);
+
+  const displayFrame = useCallback(async (metadata: GribDataset, index: number, resetViewport = false) => {
+    if (index < 0 || index >= metadata.frames.length) return;
+    const request = ++frameRequest.current;
+    setPendingFrameIndex(index);
+    setTouched(null);
+    try {
+      const frame = await readFrame(metadata, index);
+      if (request !== frameRequest.current) return;
+      setDisplayedFrame(frame);
+      setCurrentFrameIndex(index);
+      const grid = frame.pressure?.grid ?? frame.wind?.grid;
+      if (grid && resetViewport) setViewport([grid.lon1, grid.lat1, grid.lon2, grid.lat2]);
+      setStatus(frame.pressure
+        ? `${frame.pressure.min.toFixed(0)}–${frame.pressure.max.toFixed(0)} hPa`
+        : t('map.pressureUnavailable'));
+      retainNeighborCache(index);
+      preloadNeighbors(metadata, index);
+    } finally {
+      if (request === frameRequest.current) setPendingFrameIndex(null);
+    }
+  }, [preloadNeighbors, readFrame, retainNeighborCache, t]);
+
+  const selectFrame = useCallback(async (index: number) => {
+    if (!dataset || pendingFrameIndex !== null || index === currentFrameIndex) return;
+    try {
+      await displayFrame(dataset, index);
+    } catch (error) {
+      if (__DEV__) console.error('Forecast frame change failed', error);
+      setStatus(t('map.frameUnavailable'));
+    }
+  }, [currentFrameIndex, dataset, displayFrame, pendingFrameIndex, t]);
 
   const loadData = useCallback(async () => {
     try {
@@ -151,63 +239,19 @@ export default function MapScreen() {
       if (!metadata) throw new Error(t('map.notFound'));
       setDataset(metadata);
       setFileInfo({ size: metadata.fileSize, modified: metadata.downloadedAt });
-
-      const file = getDatasetFile(params.file);
-      const bytes = await file.bytes();
-
-      const messages = findGribMessages(bytes);
-
-      const pressureMsg = messages.find(msg =>
-        readMessageParameter(bytes, msg.offset).name.includes('pressure')
-      );
-      if (!pressureMsg) throw new Error(t('map.pressureMissing'));
-
-      const grid = readGridDefinition(bytes, pressureMsg.offset);
-      const repr = readDataRepresentation(bytes, pressureMsg.offset);
-
+      frameCache.current.clear();
+      setDisplayedFrame(null);
+      setCurrentFrameIndex(0);
       setStatus(t('map.decoding'));
-      const raw = await decodeValues(bytes, pressureMsg.offset, repr);
-
-      const values = new Float32Array(raw.length);
-      let min = Infinity;
-      let max = -Infinity;
-      for (let i = 0; i < raw.length; i++) {
-        values[i] = raw[i] / 100;
-        if (values[i] < min) min = values[i];
-        if (values[i] > max) max = values[i];
-      }
-
-      const levels: number[] = [];
-      const startLevel = Math.ceil(min / 4) * 4;
-      for (let l = startLevel; l <= max; l += 4) {
-        levels.push(l);
-      }
-      const iso = computeIsobares(values, grid.ni, grid.nj, levels);
-
-      setGridData({ values, ni: grid.ni, nj: grid.nj, min, max });
-      setIsobares(iso);
-
-      const uMsg = messages.find(msg =>
-        readMessageParameter(bytes, msg.offset).name.includes('U wind')
-      );
-      const vMsg = messages.find(msg =>
-        readMessageParameter(bytes, msg.offset).name.includes('V wind')
-      );
-
-      if (uMsg && vMsg) {
-        const reprU = readDataRepresentation(bytes, uMsg.offset);
-        const reprV = readDataRepresentation(bytes, vMsg.offset);
-        const rawU = await decodeValues(bytes, uMsg.offset, reprU);
-        const rawV = await decodeValues(bytes, vMsg.offset, reprV);
-        setWindData({ u: rawU, v: rawV });
-      }
-
-      setStatus(`${min.toFixed(0)}–${max.toFixed(0)} hPa`);
+      await displayFrame(metadata, 0, true);
     } catch (error: unknown) {
-      const message = error instanceof Error ? localizeTechnicalMessage(error.message, language) : t('map.unreadable');
+      if (__DEV__ && error instanceof Error) console.error('GRIB decoding failed', error);
+      const message = error instanceof GribValidationError
+        ? t('map.unsupportedGrib')
+        : error instanceof Error ? localizeTechnicalMessage(error.message, language) : t('map.unreadable');
       setStatus(t('map.error', { message }));
     }
-  }, [language, params.file, t]);
+  }, [displayFrame, language, params.file, t]);
 
   useEffect(() => {
     void loadData();
@@ -226,8 +270,7 @@ export default function MapScreen() {
   };
 
   const renderIsobares = () => {
-    if (!gridData || !isobares) return null;
-    const { ni, nj } = gridData;
+    if (!pressureData || !isobares) return null;
     const elements: ReactElement[] = [];
     const labeledLevels = new Set<number>();
 
@@ -237,13 +280,15 @@ export default function MapScreen() {
       const strokeW = isMain ? 1.2 : 0.6;
 
       isoLines.forEach((l, idx) => {
-        const longitude1 = dataset!.zone.leftlon + (l.x1 / (ni - 1)) * (dataset!.zone.rightlon - dataset!.zone.leftlon);
+        const first = gridIndexToLatLon(l.x1, l.y1, pressureData.grid);
+        const longitude1 = first.longitude;
         const x1 = projectLongitude(longitude1);
-        const latitude1 = dataset!.zone.bottomlat + (l.y1 / (nj - 1)) * (dataset!.zone.toplat - dataset!.zone.bottomlat);
+        const latitude1 = first.latitude;
         const y1 = projectLatitude(latitude1);
-        const longitude2 = dataset!.zone.leftlon + (l.x2 / (ni - 1)) * (dataset!.zone.rightlon - dataset!.zone.leftlon);
+        const second = gridIndexToLatLon(l.x2, l.y2, pressureData.grid);
+        const longitude2 = second.longitude;
         const x2 = projectLongitude(longitude2);
-        const latitude2 = dataset!.zone.bottomlat + (l.y2 / (nj - 1)) * (dataset!.zone.toplat - dataset!.zone.bottomlat);
+        const latitude2 = second.latitude;
         const y2 = projectLatitude(latitude2);
 
         elements.push(
@@ -282,22 +327,23 @@ export default function MapScreen() {
   };
 
   const renderWind = () => {
-    if (!gridData || !windData) return null;
-    const { ni, nj } = gridData;
+    if (!windData) return null;
+    const { ni, nj } = windData.grid;
     const step = 2;
     const arrows: ReactElement[] = [];
 
     for (let j = 0; j < nj; j += step) {
       for (let i = 0; i < ni; i += step) {
-        const idx = (nj - 1 - j) * ni + i;
+        const idx = j * ni + i;
         const u = windData.u[idx];
         const v = windData.v[idx];
         const speed = Math.sqrt(u * u + v * v);
         if (speed < 0.5) continue;
 
-        const longitude = dataset!.zone.leftlon + ((i + 0.5) / ni) * (dataset!.zone.rightlon - dataset!.zone.leftlon);
+        const point = gridIndexToLatLon(i, j, windData.grid);
+        const longitude = point.longitude;
         const cx = projectLongitude(longitude);
-        const latitude = dataset!.zone.toplat - ((j + 0.5) / nj) * (dataset!.zone.toplat - dataset!.zone.bottomlat);
+        const latitude = point.latitude;
         const cy = projectLatitude(latitude);
         const len = Math.min(speed * 1.5, 18);
         const dx = (u / speed) * len;
@@ -356,13 +402,13 @@ export default function MapScreen() {
       </Pressable>
 
       <View style={styles.mapContainer}>
-        {!gridData && (
+        {!displayedFrame && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color="#2474E5" />
             <Text style={styles.loadingText}>{status}</Text>
           </View>
         )}
-        {gridData && (
+        {displayedFrame && frameGrid && (
           <View style={{ flex: 1 }}>
             <Svg width={mapWidth} height={mapHeight} style={StyleSheet.absoluteFill}>
               <Rect width={mapWidth} height={mapHeight} fill="#DCECF4" />
@@ -370,14 +416,14 @@ export default function MapScreen() {
                 <Polygon key={`land-${index}`} points={points} fill="#F7F3E8" stroke="#829A91" strokeWidth={0.8} />
               ))}
             </Svg>
-            {dataset && (
+            {frameGrid && (
               <OnlineTileLayer
                 width={mapWidth}
                 height={mapHeight}
-                west={dataset.zone.leftlon}
-                east={dataset.zone.rightlon}
-                south={dataset.zone.bottomlat}
-                north={dataset.zone.toplat}
+                west={frameGrid.lon1}
+                east={frameGrid.lon2}
+                south={frameGrid.lat1}
+                north={frameGrid.lat2}
                 onAvailabilityChange={setOnlineMapAvailable}
                 onViewportChange={(bounds) => { setViewport(bounds); setTouched(null); }}
                 onInteractionChange={setMapMoving}
@@ -428,15 +474,78 @@ export default function MapScreen() {
             </Pressable>
 
             <View style={[styles.timeline, { bottom: 88 + insets.bottom }]} accessibilityLabel={t('map.timelineA11y')}>
-              <View style={styles.timelinePlay}><MaterialIcons name="play-arrow" size={22} color="#9AA0A6" /></View>
-              <View style={styles.timelineCopy}><View style={styles.timelineLabels}><Text style={styles.timelineHour}>H+0</Text><Text style={styles.timelineOnly}>{t('map.oneForecast')}</Text></View><View style={styles.timelineTrack}><View style={styles.timelineDot} /></View></View>
-              <MaterialIcons name="expand-less" size={22} color="#9AA0A6" />
+              <Pressable
+                style={[styles.timelineStep, currentFrameIndex === 0 && styles.timelineStepDisabled]}
+                disabled={currentFrameIndex === 0 || pendingFrameIndex !== null}
+                onPress={() => void selectFrame(currentFrameIndex - 1)}
+                accessibilityRole="button"
+                accessibilityLabel={t('map.previousForecast')}
+              >
+                <MaterialIcons name="chevron-left" size={25} color="#1967D2" />
+              </Pressable>
+              <View style={styles.timelineCopy}>
+                <View style={styles.timelineLabels}>
+                  <Text style={styles.timelineHour}>H+{currentDescriptor?.forecastHour ?? 0}</Text>
+                  <Text style={styles.timelineDate}>
+                    {pendingFrameIndex !== null
+                      ? t('map.loadingForecast')
+                      : currentDescriptor ? formatValidTime(currentDescriptor.validTime, language) : '—'}
+                  </Text>
+                </View>
+                {unavailableLayers.length > 0 && (
+                  <Text style={styles.timelineWarning}>{unavailableLayers.join(' · ')}</Text>
+                )}
+                <View
+                  style={styles.timelineTrack}
+                  accessibilityRole="adjustable"
+                  accessibilityValue={{
+                    min: 0,
+                    max: Math.max(0, (dataset?.frames.length ?? 1) - 1),
+                    now: currentFrameIndex,
+                    text: `H+${currentDescriptor?.forecastHour ?? 0}`,
+                  }}
+                  accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+                  onAccessibilityAction={({ nativeEvent }) => {
+                    const delta = nativeEvent.actionName === 'increment' ? 1 : -1;
+                    void selectFrame(currentFrameIndex + delta);
+                  }}
+                >
+                  {dataset?.frames.map((descriptor, index) => (
+                    <Pressable
+                      key={`${descriptor.sourceFileId}-${descriptor.forecastHour}`}
+                      style={[
+                        styles.timelineDotTarget,
+                        { left: `${dataset.frames.length === 1 ? 0 : index / (dataset.frames.length - 1) * 100}%` },
+                      ]}
+                      onPress={() => void selectFrame(index)}
+                      disabled={pendingFrameIndex !== null}
+                      accessibilityRole="button"
+                      accessibilityLabel={`H+${descriptor.forecastHour}`}
+                    >
+                      <View style={[
+                        styles.timelineDot,
+                        index === currentFrameIndex && styles.timelineDotActive,
+                        index === pendingFrameIndex && styles.timelineDotPending,
+                      ]} />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              <Pressable
+                style={[styles.timelineStep, currentFrameIndex >= (dataset?.frames.length ?? 1) - 1 && styles.timelineStepDisabled]}
+                disabled={currentFrameIndex >= (dataset?.frames.length ?? 1) - 1 || pendingFrameIndex !== null}
+                onPress={() => void selectFrame(currentFrameIndex + 1)}
+                accessibilityRole="button"
+                accessibilityLabel={t('map.nextForecast')}
+              >
+                <MaterialIcons name="chevron-right" size={25} color="#1967D2" />
+              </Pressable>
             </View>
 
             {touched && (
               <View style={[styles.infoPanel, { bottom: 166 + insets.bottom }]}>
                 <View style={styles.infoHeader}><Text style={styles.infoPlace} numberOfLines={1}>{dataset?.zone.label ?? t('map.weatherPoint')}</Text><Pressable accessibilityLabel={t('map.close')} hitSlop={10} onPress={() => setTouched(null)}><MaterialIcons name="close" size={22} color="#5F6368" /></Pressable></View>
-                <View style={styles.infoMetrics}><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.wind')}</Text><Text style={styles.infoWind}>{touched.windSpeed.toFixed(0)} kt {touched.windDir}</Text></View><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.pressure')}</Text><Text style={styles.infoPressure}>{touched.pressure.toFixed(1)} hPa</Text></View></View>
+                <View style={styles.infoMetrics}><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.wind')}</Text><Text style={styles.infoWind}>{touched.windSpeed === undefined ? t('map.layerUnavailable') : `${touched.windSpeed.toFixed(0)} kt ${touched.windDir}`}</Text></View><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.pressure')}</Text><Text style={styles.infoPressure}>{touched.pressure === undefined ? t('map.layerUnavailable') : `${touched.pressure.toFixed(1)} hPa`}</Text></View></View>
               </View>
             )}
           </View>
@@ -453,8 +562,8 @@ export default function MapScreen() {
             <SheetChoice icon="compress" title={t('map.pressure')} detail="hPa" selected={activeParameter === 'pressure'} onPress={() => { setActiveParameter('pressure'); setShowIsobares(true); setSheet(null); }} />
             <SheetChoice icon="air" title={t('map.wind')} detail={t('map.knots')} selected={activeParameter === 'wind'} onPress={() => { setActiveParameter('wind'); setShowWind(true); setSheet(null); }} />
           </> : sheet === 'layers' ? <>
-            <SheetToggle icon="waves" title={t('map.showIsobars')} value={showIsobares} onValueChange={setShowIsobares} />
-            <SheetToggle icon="air" title={t('map.showWind')} value={showWind} onValueChange={setShowWind} />
+            <SheetToggle icon="waves" title={t('map.showIsobars')} value={showIsobares && !!pressureData} disabled={!pressureData} onValueChange={setShowIsobares} />
+            <SheetToggle icon="air" title={t('map.showWind')} value={showWind && !!windData} disabled={!windData} onValueChange={setShowWind} />
             <SheetToggle icon="public" title={t('map.detailedMap')} value={onlineMapAvailable} disabled onValueChange={() => undefined} />
           </> : <>
             <InfoRow label={t('map.name')} value={dataset?.zone.label ?? '—'} />
@@ -578,13 +687,18 @@ const styles = StyleSheet.create({
   infoButton: { position: 'absolute', top: 110, right: 16, width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.96)', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 8 },
   weatherOverlayHidden: { opacity: 0 },
   timeline: { position: 'absolute', zIndex: 12, left: 16, right: 16, minHeight: 66, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.95)', elevation: 5, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-  timelinePlay: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F3F4', alignItems: 'center', justifyContent: 'center' },
+  timelineStep: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E8F0FE', alignItems: 'center', justifyContent: 'center' },
+  timelineStepDisabled: { opacity: 0.35 },
   timelineCopy: { flex: 1, gap: 7 },
   timelineLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   timelineHour: { color: '#202124', fontSize: 14, fontWeight: '700' },
-  timelineOnly: { color: '#80868B', fontSize: 11 },
-  timelineTrack: { height: 4, borderRadius: 2, backgroundColor: '#DADCE0', justifyContent: 'center' },
-  timelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#1967D2' },
+  timelineDate: { color: '#5F6368', fontSize: 10 },
+  timelineWarning: { color: '#B06000', fontSize: 10, fontWeight: '700' },
+  timelineTrack: { height: 24, borderRadius: 12, backgroundColor: '#DADCE0', justifyContent: 'center', position: 'relative' },
+  timelineDotTarget: { position: 'absolute', marginLeft: -12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  timelineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#9AA0A6' },
+  timelineDotActive: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#1967D2' },
+  timelineDotPending: { backgroundColor: '#F9AB00' },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(32,33,36,0.28)' },
   sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 34 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#C4C7C5', alignSelf: 'center', marginBottom: 16 },

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type DownloadDependencies,
   downloadGribWithDependencies,
+  buildNomadsUrl,
   getRunCandidates,
 } from './gribDownloadCore';
 import type { GribDataset, GribZone } from './gribTypes';
@@ -60,6 +61,13 @@ describe('getRunCandidates', () => {
   });
 });
 
+describe('buildNomadsUrl', () => {
+  it('targets the requested physical forecast file', () => {
+    expect(buildNomadsUrl(ZONE, '20260722', '06', 0)).toContain('.f000');
+    expect(buildNomadsUrl(ZONE, '20260722', '06', 24)).toContain('.f024');
+  });
+});
+
 describe('downloadGribWithDependencies', () => {
   it('enregistre le premier run valide', async () => {
     const { dependencies, files, saved } = createDependencies();
@@ -67,9 +75,10 @@ describe('downloadGribWithDependencies', () => {
 
     expect(dataset.runDate).toBe('20260722');
     expect(dataset.runHour).toBe('06');
-    expect(dataset.fileSize).toBe(3);
+    expect(dataset.fileSize).toBe(27);
+    expect(dataset.frames.map(frame => frame.forecastHour)).toEqual([0, 3, 6, 9, 12, 15, 18, 21, 24]);
     expect(saved).toEqual([dataset]);
-    expect([...files.keys()]).toEqual([`data:${dataset.fileName}`]);
+    expect([...files.keys()].filter(key => key.startsWith('data:'))).toHaveLength(9);
   });
 
   it('essaie le run précédent après une indisponibilité', async () => {
@@ -83,7 +92,7 @@ describe('downloadGribWithDependencies', () => {
 
     const dataset = await downloadGribWithDependencies(ZONE, dependencies);
 
-    expect(attempts).toBe(2);
+    expect(attempts).toBe(10);
     expect(dataset.runHour).toBe('00');
     expect(saved).toHaveLength(1);
   });
@@ -99,6 +108,28 @@ describe('downloadGribWithDependencies', () => {
       .rejects.toThrow('Download failed. GRIB invalide');
     expect(files.size).toBe(0);
     expect(saved).toHaveLength(0);
+  });
+
+  it('ne publie aucune frame lorsqu’une échéance du run échoue', async () => {
+    const { dependencies, files, saved } = createDependencies();
+    dependencies.download = async (url, target) => {
+      if (url.includes('.f006')) throw new Error('H+6 indisponible');
+      files.set(target, new Uint8Array([1, 2, 3]));
+    };
+
+    await expect(downloadGribWithDependencies(ZONE, dependencies))
+      .rejects.toThrow('Download failed. H+6 indisponible');
+    expect(files.size).toBe(0);
+    expect(saved).toHaveLength(0);
+  });
+
+  it('accepte une frame pression seule sans inventer de vent', async () => {
+    const { dependencies, saved } = createDependencies({
+      validate: () => ({ pressure: {} }),
+    });
+    const dataset = await downloadGribWithDependencies(ZONE, dependencies);
+    expect(dataset.frames).toHaveLength(9);
+    expect(saved).toEqual([dataset]);
   });
 
   it('arrête immédiatement une annulation et nettoie le temporaire', async () => {

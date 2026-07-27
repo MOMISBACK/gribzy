@@ -53,19 +53,20 @@ un administrateur. Le workflow n'essaie pas de contourner cette étape avec
 
 ## Stockage
 
-Chaque donnée locale comprend un fichier `.grib2` et un fichier `.json` adjacent.
-Le schéma courant est `schemaVersion: 2`. La métadonnée contient l'identifiant, le nom
-physique, la zone, le modèle, la résolution, les paramètres, les échéances, le run, la
-date de téléchargement et la taille.
+Chaque dataset local comprend un manifeste `.json` et un ou plusieurs fichiers
+`.grib2`. Le schéma courant est `schemaVersion: 3`. Le manifeste distingue le
+`sourceId` logique des fichiers physiques et contient une liste de descripteurs de
+frames avec échéance, date valide UTC et `sourceFileId`. `fileName` reste l'entrée de
+compatibilité vers la première frame.
 
-Les métadonnées 1.1 sans version sont migrées en lecture puis réécrites sans déplacer
-le GRIB. Une version future inconnue est refusée. Le scan distingue JSON corrompu,
+Les métadonnées 1.1 sans version et le schéma 2 sont migrés en lecture puis réécrits
+comme une série mono-frame sans déplacer le GRIB. Une version future inconnue est refusée. Le scan distingue JSON corrompu,
 fichier de données absent, GRIB orphelin et échec d'écriture de migration.
 
 Règles :
 
 - écrire d'abord dans un fichier temporaire ;
-- valider avant d'ajouter au catalogue ;
+- télécharger et valider les neuf échéances H+0 à H+24 avant de publier le manifeste ;
 - ne jamais supprimer une donnée valide lors d'un échec ;
 - limiter les imports à 100 Mo ;
 - renommer métadonnée et fichier de manière cohérente ;
@@ -76,14 +77,31 @@ Règles :
 1. Chercher le dernier run NOAA GFS disponible.
 2. Télécharger la sous-zone et les messages ciblés.
 3. Vérifier signature, édition, terminaison et sections.
-4. Accepter la grille latitude/longitude template 3.0.
-5. Accepter le packing simple, sans bitmap, scanning mode 64.
-6. Exiger la pression et accepter la paire cohérente U/V.
-7. Normaliser les longitudes GFS 0–360° vers −180–180°.
-8. Décoder les valeurs, calculer les isobares et rendre l'overlay.
+4. Lire l'identité complète de chaque champ depuis les sections 0, 1 et 4.
+5. Accepter uniquement le template produit 4.0, PRMSL au niveau moyen de la mer et
+   U/V à exactement 10 m au-dessus du sol, en discipline météorologique.
+6. Accepter la grille latitude/longitude régulière template 3.0, valider son échelle
+   angulaire, `Di`, `Dj`, ses extrémités et le scanning mode 64.
+7. Refuser les grilles traversant l'antiméridien, quasi régulières ou munies d'une
+   liste optionnelle.
+8. Accepter le packing simple, sans bitmap, et décoder les entiers signés GRIB en
+   représentation signe-module.
+9. Apparier U/V uniquement lorsqu'échéance, référence, niveau, processus et grille
+   coïncident.
+10. Utiliser exclusivement la section 3 pour le placement, l'inspection bilinéaire,
+    les flèches et les isobares ; la bbox du catalogue reste descriptive.
+11. Rejeter toute valeur non finie et toute structure dont les sections, longueurs,
+    nombres de points ou données compactées sont incohérents.
+
+Une frame évalue séparément la pression et le vent. U sans V ou V sans U rend
+uniquement la couche vent indisponible ; PRMSL reste affichable. Une frame sans aucune
+couche exploitable est rejetée. Le lecteur conserve la frame affichée pendant le
+décodage de la suivante et ne remplace pression et vent qu'en une seule validation.
+Le cache en mémoire est limité à la frame courante et ses deux voisines.
 
 Ce périmètre est volontairement étroit. Un encodage non pris en charge est refusé
-avant stockage au lieu d'être interprété approximativement.
+avant stockage au lieu d'être interprété approximativement. La checklist de
+validation croisée se trouve dans [`GRIB_VALIDATION.md`](./GRIB_VALIDATION.md).
 
 ## Cartographie
 
@@ -149,8 +167,8 @@ La commande de référence est :
 npm run check
 ```
 
-Elle exécute lint, TypeScript et les tests Vitest. Les vingt-quatre tests actuels couvrent
-l'état réseau, la transaction, les métadonnées et le parseur. La fixture NOAA valide trois
+Elle exécute lint, TypeScript et les tests Vitest. Les quarante-neuf tests actuels couvrent
+l'état réseau, la transaction multi-échéances, les métadonnées, les frames et le parseur. La fixture NOAA valide trois
 messages, la grille, le packing, des valeurs plausibles, la paire de vent et les
 isobares.
 

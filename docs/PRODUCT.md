@@ -146,9 +146,78 @@ des couches ou animations coûteuses.
 - Aucun compte obligatoire.
 - Aucun tracking comportemental.
 - Aucune donnée personnelle vendue.
-- Les fonctions principales de préparation et consultation hors ligne restent gratuites.
-- Un soutien volontaire peut financer le développement, sans dégrader l'expérience ni
-  créer de pression dans l'interface.
+- La bêta est gratuite afin de valider la fiabilité, le fonctionnement hors ligne et
+  l'adéquation du produit avec des utilisateurs réels.
+- Après la bêta, Gribzy est proposé en **achat unique à 4,99 €**, sans abonnement.
+- L'achat donne accès à l'application complète : aucune fonction météo essentielle
+  n'est fragmentée en achats additionnels.
+- Le prix local affiché par les stores peut être l'équivalent de 4,99 € selon le pays,
+  la devise, les taxes et les paliers tarifaires de la plateforme.
+- Les personnes participant à la bêta doivent être informées avant sa fin du passage
+  au modèle payant et des conditions qui leur seront appliquées.
+
+## Stratégie de lancement et marketing
+
+### Positionnement
+
+Gribzy est présenté comme un lecteur météo GRIB mobile, simple et offline-first pour
+les activités outdoor. La communication vend d'abord la fiabilité sur le terrain :
+préparer une zone avec du réseau, puis conserver pression et vent lorsque la connexion
+disparaît.
+
+Le prix unique de 4,99 € doit rester cohérent avec cette promesse de simplicité :
+acheter une fois, sans compte, sans publicité et sans abonnement.
+
+### Phase 1 — bêta gratuite
+
+Objectifs :
+
+- recruter des pratiquants de voile, randonnée, parapente et aviation légère ;
+- prouver le téléchargement, le redémarrage et la lecture en mode avion ;
+- recueillir les défauts d'alignement, de lisibilité et de performance ;
+- obtenir des retours qualitatifs et des témoignages utilisables avec accord explicite ;
+- mesurer la compréhension de la proposition de valeur et l'intention d'achat à 4,99 €.
+
+La bêta ne doit pas être présentée comme une gratuité permanente. Les pages publiques
+et invitations indiquent clairement « bêta gratuite » et « achat unique à 4,99 € prévu
+après la bêta ».
+
+### Phase 2 — lancement payant
+
+Le lancement public intervient seulement après les critères « prêt pour bêta », les
+contrôles scientifiques documentés et une phase de stabilisation avec les testeurs.
+
+Messages prioritaires :
+
+1. météo GRIB disponible hors ligne ;
+2. pression et vent lisibles rapidement dehors ;
+3. aucun compte, aucune publicité, aucun abonnement ;
+4. achat unique à 4,99 €.
+
+Les captures et textes marketing ne montrent que des capacités réellement livrées.
+Les alertes officielles, limites scientifiques et usages de sécurité restent indiqués
+sans ambiguïté.
+
+### Canaux initiaux
+
+- page publique Gribzy et fiche store ;
+- communautés outdoor pertinentes, sans démarchage massif ;
+- testeurs bêta et bouche-à-oreille ;
+- démonstrations courtes du parcours téléchargement → mode avion → consultation ;
+- contenu bilingue anglais/français.
+
+### Indicateurs
+
+La stratégie respecte l'absence de tracking comportemental. Les indicateurs privilégiés
+sont agrégés ou fournis volontairement :
+
+- nombre de candidatures et de testeurs actifs ;
+- taux de parcours critiques validés sur appareil ;
+- défauts bloquants et délai de résolution ;
+- retours qualitatifs et intention d'achat déclarée ;
+- téléchargements et achats agrégés communiqués par les stores.
+
+Aucun SDK publicitaire ou outil de profilage n'est ajouté pour mesurer la conversion.
 
 ## Non-objectifs
 
@@ -172,14 +241,14 @@ puis en mode avion.
 | Bibliothèque | Terminé | Import, liste, noms, ouverture, renommage, suppression, migration versionnée | Gros catalogue et migration à tester sur appareil |
 | Sélection | Terminé | Monde, pan, pincement, bbox égale au viewport, GPS | Validation tactile réelle |
 | Téléchargement | Partiel | Dernier run NOAA GFS, non destructif, état hors ligne explicite | Options fixes et comportement réseau à valider sur appareil |
-| Lecture GRIB | Partiel | Pression, isobares et vent 10 m | Uniquement `f000` et encodage ciblé |
+| Lecture GRIB | Partiel | Pression, isobares et vent 10 m avec identité, niveau, grille et appariement stricts | Encodage ciblé ; validation croisée externe incomplète |
 | Carte en ligne | Terminé | OpenFreeMap/MapLibre avec attribution | Validation sur APK |
 | Carte hors ligne | Partiel | Natural Earth mondial embarqué | Détail local insuffisant |
 | Point météo | Partiel | Vent et pression au point touché | Autres variables et lieu précis absents |
-| Timeline | Partiel | État fidèle `H+0` | Pas encore de série temporelle |
+| Timeline | Partiel | 9 échéances GFS H+0 à H+24, précédent/suivant, slider et date UTC, hors ligne | Pas encore de lecture automatique |
 | Réglages | Partiel | Langue automatique/anglais/français, informations et stockage réels | Autres options modifiables limitées |
 | Branding | Terminé | Ours officiel, splash, launcher, favicon | Masques Android à vérifier |
-| Qualité | Partiel | TypeScript, lint, 17 tests réseau/téléchargement/métadonnées/parser, export | Tests UI et appareils absents |
+| Qualité | Partiel | TypeScript, lint, 49 tests réseau/téléchargement/métadonnées/parser/frames, export | Tests UI et appareils absents |
 | Distribution | Partiel | Profils APK/AAB configurés | Installation et stores à valider |
 
 ## Roadmap produit
@@ -247,8 +316,8 @@ Objectif : raccourcir l'accès à l'information sans transformer Gribzy en plate
 
 ### P1
 
-1. Télécharger et décoder plusieurs échéances GFS.
-2. Activer la timeline à partir de vraies données.
+1. Valider sur appareil le téléchargement atomique et la timeline H+0 à H+24.
+2. Mesurer le cache de trois frames et le changement d'échéance.
 3. Ajouter pluie et température progressivement.
 4. Définir la carte détaillée hors ligne et ses limites de stockage.
 

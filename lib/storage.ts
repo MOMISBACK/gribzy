@@ -28,7 +28,11 @@ export async function importGribFile(uri: string, originalName: string): Promise
   const source = new File(uri);
   if (source.size > 100 * 1024 * 1024) throw new Error('The file exceeds the 100 MB limit.');
   const bytes = await source.bytes();
-  const { grid } = validateGribForApp(bytes);
+  const validated = validateGribForApp(bytes);
+  const { grid } = validated;
+  if (validated.pressureField.identity.forecastTimeUnit !== 1) {
+    throw new Error('Only GRIB forecast times expressed in hours are supported.');
+  }
   const now = new Date();
   const id = `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
   const cleanName = originalName.replace(/\.grib2?$|\.grb2?$/i, '').trim() || 'Imported GRIB';
@@ -36,9 +40,20 @@ export async function importGribFile(uri: string, originalName: string): Promise
   const fileName = `${slugifyName(cleanName)}-${id}.grib2`;
   const destination = getDatasetFile(fileName);
   const dataset: GribDataset = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id,
     fileName,
+    sourceId: id,
+    frames: [{
+      forecastHour: validated.pressureField.identity.forecastTime,
+      validTime: new Date(
+        Date.parse(validated.pressureField.identity.referenceTime) +
+        validated.pressureField.identity.forecastTime * 60 * 60 * 1000
+      ).toISOString(),
+      sourceId: id,
+      sourceFileId: fileName,
+      messageIndexes: validated.fields.map((_, index) => index),
+    }],
     zone: {
       leftlon: Math.min(grid.lon1, grid.lon2),
       rightlon: Math.max(grid.lon1, grid.lon2),
@@ -48,8 +63,8 @@ export async function importGribFile(uri: string, originalName: string): Promise
     },
     model: 'Imported',
     resolution: 'Unknown',
-    parameters: ['pressure'],
-    forecastHours: [0],
+    parameters: validated.windU && validated.windV ? ['pressure', 'wind'] : ['pressure'],
+    forecastHours: [validated.pressureField.identity.forecastTime],
     runDate,
     runHour: '--',
     downloadedAt: now.getTime(),
@@ -92,10 +107,11 @@ export async function readGribCatalog(): Promise<GribCatalog> {
         continue;
       }
       const { dataset } = decoded;
-      const dataFile = getDatasetFile(dataset.fileName);
-      referencedFiles.add(dataset.fileName);
-      if (!dataFile.exists) {
-        issues.push({ type: 'missing_data', entryName: entry.name, message: `Missing file: ${dataset.fileName}` });
+      const frameFiles = [...new Set(dataset.frames.map(frame => frame.sourceFileId))];
+      frameFiles.forEach(fileName => referencedFiles.add(fileName));
+      const missingFile = frameFiles.find(fileName => !getDatasetFile(fileName).exists);
+      if (missingFile) {
+        issues.push({ type: 'missing_data', entryName: entry.name, message: `Missing file: ${missingFile}` });
         continue;
       }
       datasets.push(dataset);
@@ -136,9 +152,11 @@ export async function listGribDatasets(): Promise<GribDataset[]> {
 }
 
 export function deleteGribDataset(dataset: GribDataset): void {
-  const data = getDatasetFile(dataset.fileName);
   const metadata = new File(getDataDirectory(), `${dataset.id}.json`);
-  if (data.exists) data.delete();
+  for (const fileName of new Set(dataset.frames.map(frame => frame.sourceFileId))) {
+    const data = getDatasetFile(fileName);
+    if (data.exists) data.delete();
+  }
   if (metadata.exists) metadata.delete();
 }
 
@@ -152,6 +170,11 @@ export function renameGribDataset(dataset: GribDataset, requestedName: string): 
   if (!name) throw new Error('The name cannot be empty.');
   if (name.length > 80) throw new Error('The name is limited to 80 characters.');
 
+  if (dataset.frames.length > 1) {
+    const renamed = { ...dataset, zone: { ...dataset.zone, label: name } };
+    saveDatasetMetadata(renamed);
+    return renamed;
+  }
   const currentFile = getDatasetFile(dataset.fileName);
   if (!currentFile.exists) throw new Error('The GRIB file cannot be found.');
   const nextFileName = `${slugifyName(name)}-${dataset.runDate}-${dataset.runHour}z-${dataset.id}.grib2`;
@@ -160,7 +183,12 @@ export function renameGribDataset(dataset: GribDataset, requestedName: string): 
 
   const moved = nextFileName !== dataset.fileName;
   if (moved) currentFile.move(nextFile);
-  const renamed = { ...dataset, fileName: nextFileName, zone: { ...dataset.zone, label: name } };
+  const renamed = {
+    ...dataset,
+    fileName: nextFileName,
+    frames: dataset.frames.map(frame => ({ ...frame, sourceFileId: nextFileName })),
+    zone: { ...dataset.zone, label: name },
+  };
   try {
     saveDatasetMetadata(renamed);
     return renamed;

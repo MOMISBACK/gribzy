@@ -1,0 +1,44 @@
+{
+  "source": "NOAA GFS fixture preserved from the Gribzy test suite",
+  "scientificallyValidated": false,
+  "referenceTime": "2026-07-22T00:00:00.000Z",
+  "forecastTime": 0,
+  "forecastTimeUnit": 1,
+  "grid": {
+    "ni": 5,
+    "nj": 5,
+    "lat1": 47,
+    "lon1": -5,
+    "lat2": 48,
+    "lon2": -4,
+    "di": 0.25,
+    "dj": 0.25,
+    "scanningMode": 64
+  },
+  "expectedSamples": [
+    {
+      "i": 0,
+      "j": 0,
+      "parameter": "PRMSL",
+      "value": 102526.375,
+      "unit": "Pa",
+      "tolerance": 0.005
+    },
+    {
+      "i": 2,
+      "j": 2,
+      "parameter": "PRMSL",
+      "value": 102597.975,
+      "unit": "Pa",
+      "tolerance": 0.005
+    },
+    {
+      "i": 4,
+      "j": 4,
+      "parameter": "PRMSL",
+      "value": 102661.575,
+      "unit": "Pa",
+      "tolerance": 0.005
+    }
+  ]
+}

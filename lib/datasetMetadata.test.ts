@@ -36,7 +36,7 @@ describe('decodeDatasetMetadata', () => {
     expect(result.success && result.dataset.parameters).toEqual(['pressure']);
   });
 
-  it('normalise les paramètres et échéances du schéma courant', () => {
+  it('migre et normalise les paramètres et échéances du schéma 2', () => {
     const result = decodeDatasetMetadata({
       ...LEGACY,
       schemaVersion: 2,
@@ -46,8 +46,31 @@ describe('decodeDatasetMetadata', () => {
       forecastHours: [6, 0, 3, 3],
     });
     expect(result.success && result.dataset.parameters).toEqual(['wind', 'pressure']);
-    expect(result.success && result.dataset.forecastHours).toEqual([0, 3, 6]);
+    expect(result.success && result.dataset.forecastHours).toEqual([0]);
+    expect(result.success && result.migrated).toBe(true);
+    expect(result.success && result.dataset.frames[0]).toMatchObject({
+      forecastHour: 0,
+      sourceFileId: LEGACY.fileName,
+    });
+  });
+
+  it('conserve un manifeste temporel du schéma courant', () => {
+    const result = decodeDatasetMetadata({
+      ...LEGACY,
+      fileName: 'f000.grib2',
+      schemaVersion: CURRENT_DATASET_SCHEMA,
+      model: 'GFS',
+      resolution: '0.25°',
+      parameters: ['pressure', 'wind'],
+      forecastHours: [0, 3],
+      sourceId: 'source-1',
+      frames: [
+        { forecastHour: 0, validTime: '2026-07-22T06:00:00.000Z', sourceId: 'source-1', sourceFileId: 'f000.grib2' },
+        { forecastHour: 3, validTime: '2026-07-22T09:00:00.000Z', sourceId: 'source-1', sourceFileId: 'f003.grib2' },
+      ],
+    });
     expect(result.success && result.migrated).toBe(false);
+    expect(result.success && result.dataset.frames).toHaveLength(2);
   });
 
   it('refuse une version future au lieu de la deviner', () => {

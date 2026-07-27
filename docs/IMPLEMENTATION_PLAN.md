@@ -12,7 +12,8 @@ L'application est une **alpha fonctionnelle bien structurée**. Le flux nominal 
 présent et la base UI est plus avancée que le moteur météo. Deux promesses centrales
 restent toutefois incomplètes :
 
-1. une « prévision » ne contient aujourd'hui que l'échéance initiale `f000` ;
+1. la timeline manuelle couvre H+0 à H+24, mais la lecture automatique reste à valider
+   après mesure de la mémoire et des performances ;
 2. le fond embarqué fonctionne hors ligne, mais n'a pas le détail local attendu.
 
 Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des écrans.
@@ -33,7 +34,7 @@ Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des
 | Risque | Impact | Constat |
 | --- | --- | --- |
 | Parcours non testé sur appareil | Critique | GPS, MapLibre, reprise, redémarrage et mode avion restent à prouver |
-| Une seule échéance | Critique | Timeline et animation ne peuvent pas fonctionner réellement |
+| Lecture automatique absente | Moyen | La navigation manuelle H+0 à H+24 fonctionne ; boucle et vitesse restent futures |
 | Fond hors ligne trop grossier | Élevé | Natural Earth 1:110m situe une zone, pas un sentier ou une côte détaillée |
 | Couverture automatisée faible | Élevé | 3 tests parser seulement ; téléchargement et stockage ne sont pas testés |
 | Connectivité implicite | Élevé | Le bouton tente un téléchargement même hors ligne |
@@ -63,6 +64,10 @@ Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des
 | QA-108 — recrutement public | Implémenté, publication requise | GitHub Pages déployée et première candidature reçue |
 | UX-109 — défauts appareil alpha | Implémenté, validation appareil requise | Safe area, GPS, synchronisation overlay, chargement carte et icône sur APK |
 | UX-110 — zone égale au viewport | Implémenté, validation appareil requise | Bbox visible et seuil de taille vérifiés sur APK |
+| PARSER-111 — décodage GRIB strict | Implémenté, validation croisée requise | Comparaisons XyGrib/PocketGrib et appareils |
+| DATA-201 — manifeste temporel | Implémenté, validation appareil requise | Migration réelle et redémarrage hors ligne |
+| DL-301 — H+0 à H+24 | Implémenté, validation NOAA/appareil requise | Transaction native complète et interruption |
+| UI-303 — timeline manuelle | Implémenté, validation appareil requise | Gestes, accessibilité et mémoire |
 | CORE-104 — service de décodage | À faire | Fixture décodée hors écran |
 | MAP-105 — alignement | À faire | Tests de projection et contrôle appareil |
 | QA-106 — parcours automatisé | À faire | Outil E2E choisi et scénario critique exécuté |
@@ -111,6 +116,27 @@ Une checklist datée avec appareil, version Android, APK et résultat de chaque 
 
 Aucun blocage critique inconnu dans le parcours nominal ; chaque défaut observé possède
 une reproduction et une priorité.
+
+## Lancement commercial
+
+### MKT-001 — bêta gratuite transparente
+
+- indiquer sur les pages de recrutement que la bêta est gratuite ;
+- annoncer qu'un achat unique à 4,99 € est prévu après la bêta ;
+- ne jamais laisser entendre que l'application restera définitivement gratuite ;
+- recueillir l'intention d'achat et les retours uniquement de manière volontaire.
+
+### MKT-002 — préparation du lancement payant
+
+- configurer un achat unique à 4,99 € ou son palier local équivalent ;
+- vérifier la restauration d'achat sur chaque plateforme prise en charge ;
+- définir et communiquer le traitement réservé aux testeurs bêta avant la transition ;
+- préparer une fiche store bilingue fidèle aux fonctions effectivement validées ;
+- conserver l'absence de compte, publicité, abonnement et tracking comportemental.
+
+**Critère de lancement :** prix et conditions visibles avant achat, restauration testée,
+aucune fonction essentielle vendue séparément et aucun message contredisant la phase
+gratuite de la bêta.
 
 ## Lot 1 — fiabiliser la V1
 
@@ -234,6 +260,21 @@ en ligne et ours non rogné sur le launcher cible.
 **Acceptation :** la bbox affichée avant téléchargement correspond au viewport final,
 le bouton se réactive après un zoom suffisant et le GRIB ouvert couvre cette bbox.
 
+### PARSER-111 — empêcher les interprétations GRIB silencieuses
+
+**État : implémenté le 27 juillet 2026, validation scientifique externe en attente.**
+
+- validation stricte de la structure et des longueurs de sections ;
+- identité discipline/paramètre/template/temps/niveau/processus ;
+- appariement U/V cohérent à 10 m ;
+- géométrie de section 3 comme source de vérité du rendu ;
+- interpolation bilinéaire de la pression et des composantes du vent ;
+- refus explicite des valeurs non finies, grilles incohérentes et antiméridien ;
+- cas ambigus des isobares décidés depuis le champ bilinéaire au centre.
+
+**Acceptation restante :** compléter `docs/GRIB_VALIDATION.md` avec des comparaisons
+indépendantes et répéter l'alignement sur appareils.
+
 ## Décision anticipée — carte hors ligne
 
 Cette étude commence pendant le lot 1, sans implémentation prématurée.
@@ -258,6 +299,8 @@ OpenStreetMap ne sont jamais une source de téléchargement massif.
 Objectif : préparer plusieurs échéances sans casser les fichiers V1.
 
 ### DATA-201 — modèle de dataset V2
+
+**État : implémenté le 27 juillet 2026 sous forme du schéma persistant 3.**
 
 Structure recommandée :
 
@@ -296,6 +339,9 @@ Objectif : permettre de comprendre l'évolution météo.
 
 ### DL-301 — téléchargement multi-échéances
 
+**État : premier lot manuel implémenté le 27 juillet 2026 pour H+0 à H+24 par pas de
+3 heures.**
+
 - proposer d'abord 24 h et 48 h avec un pas raisonnable ;
 - télécharger séquentiellement ou avec concurrence bornée ;
 - afficher échéance courante et progression globale ;
@@ -310,6 +356,9 @@ Objectif : permettre de comprendre l'évolution météo.
 - mesurer temps de changement et FPS.
 
 ### UI-303 — timeline active
+
+**État : navigation manuelle implémentée le 27 juillet 2026. Lecture, vitesse et
+boucle restent volontairement absentes avant mesure sur appareil.**
 
 - précédent, suivant, slider et lecture ;
 - vitesse et boucle dans l'état étendu ;
