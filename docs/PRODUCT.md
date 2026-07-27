@@ -75,7 +75,8 @@ Les qualités recherchées, dans l'ordre, sont :
 
 ### Fichiers
 
-L'accueil est accueillant sans illustration. « Ouvrir un fichier GRIB » reste l'action
+L'accueil est introduit par une bannière horizontale fine utilisant le symbole Gribzy,
+sans détourner l'attention des actions. « Ouvrir un fichier GRIB » reste l'action
 principale. Le téléchargement d'une zone est secondaire. La liste récente montre un
 nom lisible, le modèle, le run, la taille et la date, avec ouverture, renommage et
 suppression confirmée.
@@ -91,12 +92,24 @@ la carte modifie directement la bbox, sans sélecteur de taille parallèle. Lors
 vue est trop large pour une requête GFS fiable, l'action demande de zoomer plutôt que
 de lancer silencieusement un téléchargement excessif.
 
+La sélection n'affiche aucun bandeau de marque au-dessus de la carte. Le contrôle de
+position est un bouton GPS iconique : si l'autorisation est déjà accordée et les
+services actifs, le point utilisateur apparaît dès l'ouverture sans recentrage forcé ;
+un toucher demande l'autorisation si nécessaire, actualise le point et centre la carte.
+La fiche de zone affiche seulement son centre géographique, et non ses quatre bornes.
+L'attribution OpenFreeMap est accessible dans Réglages plutôt que superposée à cet écran.
+
 ### Carte
 
 La carte occupe presque tout l'écran. Elle conserve un sélecteur de paramètre compact,
 des actions flottantes, une timeline visible et une fiche ponctuelle en bottom sheet
 ou carte flottante. Le pan et le zoom ne doivent jamais entrer en conflit avec un
 défilement d'interface.
+
+La météo domine visuellement le fond et les contrôles : isobares contrastées et
+étiquetées, vecteurs de vent lisibles, légère teinte de pression non assimilable à une
+heatmap, surfaces translucides compactes et transitions de frame de 150 à 250 ms. Un
+contrôle de lecture automatique ne doit apparaître que lorsque cette lecture existe.
 
 ### Réglages
 

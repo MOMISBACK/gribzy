@@ -7,20 +7,48 @@ export interface UserLocation {
   lon: number;
 }
 
+function toUserLocation(location: Location.LocationObject): UserLocation {
+  return {
+    lat: location.coords.latitude,
+    lon: location.coords.longitude,
+  };
+}
+
+export async function getGrantedUserLocation(): Promise<UserLocation | null> {
+  const [{ status }, servicesEnabled] = await Promise.all([
+    Location.getForegroundPermissionsAsync(),
+    Location.hasServicesEnabledAsync(),
+  ]);
+  if (status !== 'granted' || !servicesEnabled) return null;
+
+  const lastKnown = await Location.getLastKnownPositionAsync({
+    maxAge: 5 * 60 * 1000,
+    requiredAccuracy: 5000,
+  });
+  if (lastKnown) return toUserLocation(lastKnown);
+
+  return toUserLocation(await Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.Balanced,
+  }));
+}
+
 export async function getUserLocation(): Promise<UserLocation> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
     throw new Error('Location permission denied');
   }
 
+  const lastKnown = await Location.getLastKnownPositionAsync({
+    maxAge: 30 * 60 * 1000,
+    requiredAccuracy: 10000,
+  });
+  if (lastKnown) return toUserLocation(lastKnown);
+
   const location = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
+    accuracy: Location.Accuracy.Low,
   });
 
-  return {
-    lat: location.coords.latitude,
-    lon: location.coords.longitude,
-  };
+  return toUserLocation(location);
 }
 
 export function buildZoneFromLocation(lat: number, lon: number, span = 10, language: AppLanguage = 'en') {

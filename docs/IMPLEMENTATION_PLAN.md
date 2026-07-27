@@ -254,6 +254,8 @@ en ligne et ours non rogné sur le launcher cible.
 - bbox GRIB synchronisée avec les limites visibles après pan ou pincement ;
 - suppression des choix 6/10/20° et du cadre de taille indépendant ;
 - recentrage GPS conservant un cadrage local initial ;
+- position déjà autorisée visible à l'ouverture, bouton GPS iconique et recentrage
+  uniquement après action explicite ;
 - téléchargement bloqué au-dessus de 10 000 points GFS estimés ;
 - message invitant à zoomer et suppression des bulles gestuelles.
 

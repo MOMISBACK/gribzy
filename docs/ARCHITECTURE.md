@@ -36,7 +36,8 @@ natif. Le web utilise les variantes génériques des composants.
 - `lib/gribParser.ts` : validation, décodage et isolignes GRIB2.
 - `lib/datasetMetadata.ts` : validation et migration pure des métadonnées.
 - `lib/storage.ts` : catalogue, import, renommage et suppression.
-- `lib/location.ts` : permission et recentrage GPS.
+- `lib/location.ts` : lecture passive d'une position déjà autorisée, demande de
+  permission au toucher et recentrage GPS.
 - `lib/networkState.ts` : interprétation testable de l'état réseau.
 - `lib/i18n.tsx` : dictionnaires anglais/français, détection, contexte et préférence persistante.
 - `lib/gribParser.test.ts` : fixture NOAA et tests parser.
@@ -107,7 +108,8 @@ validation croisée se trouve dans [`GRIB_VALIDATION.md`](./GRIB_VALIDATION.md).
 
 ### En ligne
 
-OpenFreeMap est chargé par MapLibre sur iOS et Android. L'attribution reste visible.
+OpenFreeMap est chargé par MapLibre sur iOS et Android. L'attribution et le lien vers
+le fournisseur sont accessibles dans Réglages afin de ne pas encombrer la sélection.
 L'overlay SVG reçoit les bornes Web Mercator visibles afin d'aligner projection,
 inspection, pan et pincement.
 

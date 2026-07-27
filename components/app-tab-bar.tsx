@@ -32,11 +32,11 @@ export function AppTabBar({ active, mapFile }: { active: Tab; mapFile?: string }
 }
 
 const styles = StyleSheet.create({
-  bar: { position: 'absolute', zIndex: 30, left: 12, right: 12, height: 68, flexDirection: 'row', backgroundColor: 'rgba(248,249,250,0.96)', borderRadius: 22, paddingHorizontal: 4, paddingVertical: 5, elevation: 8, shadowColor: '#202124', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
-  tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 16 },
-  iconPill: { width: 64, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  iconPillActive: { backgroundColor: '#D8E6FF' },
-  label: { color: '#5F6368', fontSize: 12, fontWeight: '600' },
-  labelActive: { color: '#174EA6', fontWeight: '700' },
+  bar: { position: 'absolute', zIndex: 30, left: 14, right: 14, height: 60, flexDirection: 'row', backgroundColor: 'rgba(250,251,252,0.94)', borderRadius: 22, paddingHorizontal: 5, paddingVertical: 4, elevation: 6, shadowColor: '#202124', shadowOpacity: 0.1, shadowRadius: 16, shadowOffset: { width: 0, height: 5 } },
+  tab: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 1, borderRadius: 17 },
+  iconPill: { width: 56, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  iconPillActive: { backgroundColor: '#DCE9FF' },
+  label: { color: '#65717D', fontSize: 10, fontWeight: '600' },
+  labelActive: { color: '#174EA6', fontWeight: '800' },
   disabled: { color: '#BCC2CA' },
 });

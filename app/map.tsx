@@ -18,6 +18,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   GestureResponderEvent,
   Linking,
   Modal,
@@ -42,6 +43,21 @@ function formatValidTime(validTime: string, language: 'en' | 'fr'): string {
     timeZone: 'UTC',
     timeZoneName: 'short',
   }).format(new Date(validTime));
+}
+
+function formatRunTime(runDate: string | undefined, runHour: string | undefined, language: 'en' | 'fr'): string {
+  if (!runDate || !runHour || runHour === '--') return '';
+  const year = Number(runDate.slice(0, 4));
+  const month = Number(runDate.slice(4, 6)) - 1;
+  const day = Number(runDate.slice(6, 8));
+  if (![year, month, day].every(Number.isFinite)) return `${runDate} · ${runHour} UTC`;
+  const date = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month, day)));
+  return `${date} · ${runHour} UTC`;
 }
 
 const LAND_RINGS_WITH_BOUNDS = WORLD_LAND_RINGS.map((ring) => ({
@@ -86,6 +102,7 @@ export default function MapScreen() {
   const [showWind, setShowWind] = useState(true);
   const [viewport, setViewport] = useState<[number, number, number, number] | null>(null);
   const frameRequest = useRef(0);
+  const frameTransition = useRef(new Animated.Value(1)).current;
   const pressureData = displayedFrame?.pressure;
   const windData = displayedFrame?.wind;
   const frameGrid = pressureData?.grid ?? windData?.grid;
@@ -257,6 +274,15 @@ export default function MapScreen() {
     void loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    frameTransition.setValue(0.55);
+    Animated.timing(frameTransition, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [currentFrameIndex, frameTransition]);
+
   const handleMapPress = (evt: GestureResponderEvent) => {
     const px = evt.nativeEvent.locationX;
     const py = evt.nativeEvent.locationY;
@@ -276,8 +302,8 @@ export default function MapScreen() {
 
     isobares.forEach((isoLines, level) => {
       const isMain = level % 8 === 0;
-      const color = isMain ? '#17324D' : '#9BB0B8';
-      const strokeW = isMain ? 1.2 : 0.6;
+      const color = isMain ? '#193B59' : '#668394';
+      const strokeW = isMain ? 1.45 : 0.8;
 
       isoLines.forEach((l, idx) => {
         const first = gridIndexToLatLon(l.x1, l.y1, pressureData.grid);
@@ -297,6 +323,7 @@ export default function MapScreen() {
             x1={x1} y1={y1} x2={x2} y2={y2}
             stroke={color}
             strokeWidth={strokeW}
+            strokeLinecap="round"
           />
         );
 
@@ -307,13 +334,24 @@ export default function MapScreen() {
             labeledLevels.add(level);
             elements.push(
               <SvgText
+                key={`label-halo-${level}`}
+                x={mx} y={my}
+                fontSize={9}
+                fill="#FFFFFF"
+                stroke="#FFFFFF"
+                strokeWidth={3}
+                textAnchor="middle"
+                fontFamily="SpaceMono_700Bold"
+              >
+                {level}
+              </SvgText>,
+              <SvgText
                 key={`label-${level}`}
                 x={mx} y={my}
-                fontSize={8}
+                fontSize={9}
                 fill="#17324D"
-                fillOpacity={0.9}
                 textAnchor="middle"
-                fontFamily="SpaceMono_400Regular"
+                fontFamily="SpaceMono_700Bold"
               >
                 {level}
               </SvgText>
@@ -324,6 +362,43 @@ export default function MapScreen() {
     });
 
     return elements;
+  };
+
+  const renderPressureTint = () => {
+    if (!pressureData || activeParameter !== 'pressure') return null;
+    const { grid, values, min, max } = pressureData;
+    const range = Math.max(1, max - min);
+    const step = Math.max(2, Math.ceil(Math.sqrt(grid.ni * grid.nj / 400)));
+    const cells: ReactElement[] = [];
+
+    for (let j = 0; j < grid.nj - 1; j += step) {
+      for (let i = 0; i < grid.ni - 1; i += step) {
+        const value = values[j * grid.ni + i];
+        if (!Number.isFinite(value)) continue;
+        const a = gridIndexToLatLon(i, j, grid);
+        const b = gridIndexToLatLon(Math.min(i + step, grid.ni - 1), Math.min(j + step, grid.nj - 1), grid);
+        const normalized = Math.max(0, Math.min(1, (value - min) / range));
+        const red = Math.round(196 + normalized * 39);
+        const green = Math.round(220 + normalized * 8);
+        const blue = Math.round(242 - normalized * 41);
+        const x1 = projectLongitude(a.longitude);
+        const x2 = projectLongitude(b.longitude);
+        const y1 = projectLatitude(a.latitude);
+        const y2 = projectLatitude(b.latitude);
+        cells.push(
+          <Rect
+            key={`pressure-${i}-${j}`}
+            x={Math.min(x1, x2)}
+            y={Math.min(y1, y2)}
+            width={Math.abs(x2 - x1) + 1}
+            height={Math.abs(y2 - y1) + 1}
+            fill={`rgb(${red},${green},${blue})`}
+            opacity={0.14}
+          />
+        );
+      }
+    }
+    return cells;
   };
 
   const renderWind = () => {
@@ -345,34 +420,34 @@ export default function MapScreen() {
         const cx = projectLongitude(longitude);
         const latitude = point.latitude;
         const cy = projectLatitude(latitude);
-        const len = Math.min(speed * 1.5, 18);
+        const len = Math.min(speed * 1.7, 22);
         const dx = (u / speed) * len;
         const dy = (-v / speed) * len;
         const x2 = cx + dx;
         const y2 = cy + dy;
         const angle = Math.atan2(dy, dx);
-        const headLen = 3;
-        const headAngle = 0.4;
+        const headLen = 4.5;
+        const headAngle = 0.42;
 
         arrows.push(
           <Line
             key={`w-${i}-${j}`}
             x1={cx} y1={cy} x2={x2} y2={y2}
-            stroke="#1264D3" strokeWidth={1.3}
+            stroke="#075FCB" strokeWidth={1.8} strokeLinecap="round"
           />,
           <Line
             key={`wh1-${i}-${j}`}
             x1={x2} y1={y2}
             x2={x2 - headLen * Math.cos(angle - headAngle)}
             y2={y2 - headLen * Math.sin(angle - headAngle)}
-            stroke="#1264D3" strokeWidth={1.3}
+            stroke="#075FCB" strokeWidth={1.8} strokeLinecap="round"
           />,
           <Line
             key={`wh2-${i}-${j}`}
             x1={x2} y1={y2}
             x2={x2 - headLen * Math.cos(angle + headAngle)}
             y2={y2 - headLen * Math.sin(angle + headAngle)}
-            stroke="#1264D3" strokeWidth={1.3}
+            stroke="#075FCB" strokeWidth={1.8} strokeLinecap="round"
           />
         );
       }
@@ -389,10 +464,10 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.header} onPress={() => setSheet('parameter')} accessibilityRole="button" accessibilityLabel={t('map.parameterA11y')}>
+      <Pressable style={[styles.header, { top: insets.top + 10 }]} onPress={() => setSheet('parameter')} accessibilityRole="button" accessibilityLabel={t('map.parameterA11y')}>
         <View style={styles.headerTop}><Text style={styles.zoneName}>{activeParameter === 'pressure' ? t('map.pressure') : t('map.wind')}⌄</Text></View>
         <View style={styles.headerBottom}>
-          <Text style={[styles.status, isOld && styles.fileDateOld]}>{dataset?.runHour === '--' ? t('map.imported') : `Run ${dataset?.runDate ?? '—'} · ${dataset?.runHour ?? '—'} UTC`}</Text>
+          <View><Text style={styles.modelName}>{dataset?.model ?? 'GRIB'}</Text><Text style={[styles.status, isOld && styles.fileDateOld]}>{dataset?.runHour === '--' ? t('map.imported') : formatRunTime(dataset?.runDate, dataset?.runHour, language)}</Text></View>
           {isOld && (
             <Pressable onPress={() => router.push('/select')}>
               <Text style={styles.refreshHint}>{t('map.refresh')}</Text>
@@ -431,30 +506,28 @@ export default function MapScreen() {
                 showUserLocation={locationPermission}
               />
             )}
-            <Svg
-              width={mapWidth}
-              height={mapHeight}
-              onPress={handleMapPress}
-              pointerEvents={onlineMapAvailable ? 'none' : 'auto'}
-              style={mapMoving ? styles.weatherOverlayHidden : undefined}
-            >
-              {showIsobares && renderIsobares()}
-              {showWind && renderWind()}
-              {touched && (
-                <>
-                  <Line
-                    x1={touched.x - 8} y1={touched.y}
-                    x2={touched.x + 8} y2={touched.y}
-                    stroke="#E2583E" strokeWidth={2}
-                  />
-                  <Line
-                    x1={touched.x} y1={touched.y - 8}
-                    x2={touched.x} y2={touched.y + 8}
-                    stroke="#E2583E" strokeWidth={2}
-                  />
-                </>
-              )}
-            </Svg>
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: frameTransition }, mapMoving && styles.weatherOverlayHidden]} pointerEvents={onlineMapAvailable ? 'none' : 'auto'}>
+              <Svg width={mapWidth} height={mapHeight} onPress={handleMapPress}>
+                <Rect width={mapWidth} height={mapHeight} fill="#FFFFFF" opacity={onlineMapAvailable ? 0.1 : 0.04} />
+                {renderPressureTint()}
+                {showIsobares && renderIsobares()}
+                {showWind && renderWind()}
+                {touched && (
+                  <>
+                    <Line
+                      x1={touched.x - 8} y1={touched.y}
+                      x2={touched.x + 8} y2={touched.y}
+                      stroke="#E2583E" strokeWidth={2}
+                    />
+                    <Line
+                      x1={touched.x} y1={touched.y - 8}
+                      x2={touched.x} y2={touched.y + 8}
+                      stroke="#E2583E" strokeWidth={2}
+                    />
+                  </>
+                )}
+              </Svg>
+            </Animated.View>
 
             {onlineMapAvailable && (
               <Pressable
@@ -466,32 +539,46 @@ export default function MapScreen() {
               </Pressable>
             )}
 
-            <Pressable style={styles.layersButton} onPress={() => setSheet('layers')} accessibilityRole="button" accessibilityLabel={t('map.layersA11y')}>
-              <MaterialIcons name="layers" size={24} color="#1967D2" />
+            <Pressable style={[styles.layersButton, { top: insets.top + 10 }]} onPress={() => setSheet('layers')} accessibilityRole="button" accessibilityLabel={t('map.layersA11y')}>
+              <MaterialIcons name="layers" size={22} color="#1967D2" />
             </Pressable>
-            <Pressable style={styles.infoButton} onPress={() => setSheet('info')} accessibilityRole="button" accessibilityLabel={t('map.infoA11y')}>
-              <MaterialIcons name="info-outline" size={24} color="#1967D2" />
+            <Pressable style={[styles.infoButton, { top: insets.top + 68 }]} onPress={() => setSheet('info')} accessibilityRole="button" accessibilityLabel={t('map.infoA11y')}>
+              <MaterialIcons name="info-outline" size={22} color="#1967D2" />
             </Pressable>
 
             <View style={[styles.timeline, { bottom: 88 + insets.bottom }]} accessibilityLabel={t('map.timelineA11y')}>
-              <Pressable
-                style={[styles.timelineStep, currentFrameIndex === 0 && styles.timelineStepDisabled]}
-                disabled={currentFrameIndex === 0 || pendingFrameIndex !== null}
-                onPress={() => void selectFrame(currentFrameIndex - 1)}
-                accessibilityRole="button"
-                accessibilityLabel={t('map.previousForecast')}
-              >
-                <MaterialIcons name="chevron-left" size={25} color="#1967D2" />
-              </Pressable>
-              <View style={styles.timelineCopy}>
-                <View style={styles.timelineLabels}>
+              <View style={styles.timelineTop}>
+                <Pressable
+                  style={[styles.timelineStep, currentFrameIndex === 0 && styles.timelineStepDisabled]}
+                  disabled={currentFrameIndex === 0 || pendingFrameIndex !== null}
+                  onPress={() => void selectFrame(currentFrameIndex - 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('map.previousForecast')}
+                >
+                  <MaterialIcons name="chevron-left" size={24} color="#1967D2" />
+                </Pressable>
+                <Animated.View style={[styles.timelineCopy, {
+                  opacity: frameTransition,
+                  transform: [{ translateY: frameTransition.interpolate({ inputRange: [0.55, 1], outputRange: [3, 0] }) }],
+                }]}>
                   <Text style={styles.timelineHour}>H+{currentDescriptor?.forecastHour ?? 0}</Text>
                   <Text style={styles.timelineDate}>
                     {pendingFrameIndex !== null
                       ? t('map.loadingForecast')
                       : currentDescriptor ? formatValidTime(currentDescriptor.validTime, language) : '—'}
                   </Text>
-                </View>
+                </Animated.View>
+                <Pressable
+                  style={[styles.timelineStep, currentFrameIndex >= (dataset?.frames.length ?? 1) - 1 && styles.timelineStepDisabled]}
+                  disabled={currentFrameIndex >= (dataset?.frames.length ?? 1) - 1 || pendingFrameIndex !== null}
+                  onPress={() => void selectFrame(currentFrameIndex + 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('map.nextForecast')}
+                >
+                  <MaterialIcons name="chevron-right" size={24} color="#1967D2" />
+                </Pressable>
+              </View>
+              <View style={styles.timelineTrackArea}>
                 {unavailableLayers.length > 0 && (
                   <Text style={styles.timelineWarning}>{unavailableLayers.join(' · ')}</Text>
                 )}
@@ -531,19 +618,10 @@ export default function MapScreen() {
                   ))}
                 </View>
               </View>
-              <Pressable
-                style={[styles.timelineStep, currentFrameIndex >= (dataset?.frames.length ?? 1) - 1 && styles.timelineStepDisabled]}
-                disabled={currentFrameIndex >= (dataset?.frames.length ?? 1) - 1 || pendingFrameIndex !== null}
-                onPress={() => void selectFrame(currentFrameIndex + 1)}
-                accessibilityRole="button"
-                accessibilityLabel={t('map.nextForecast')}
-              >
-                <MaterialIcons name="chevron-right" size={25} color="#1967D2" />
-              </Pressable>
             </View>
 
             {touched && (
-              <View style={[styles.infoPanel, { bottom: 166 + insets.bottom }]}>
+              <View style={[styles.infoPanel, { bottom: 214 + insets.bottom }]}>
                 <View style={styles.infoHeader}><Text style={styles.infoPlace} numberOfLines={1}>{dataset?.zone.label ?? t('map.weatherPoint')}</Text><Pressable accessibilityLabel={t('map.close')} hitSlop={10} onPress={() => setTouched(null)}><MaterialIcons name="close" size={22} color="#5F6368" /></Pressable></View>
                 <View style={styles.infoMetrics}><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.wind')}</Text><Text style={styles.infoWind}>{touched.windSpeed === undefined ? t('map.layerUnavailable') : `${touched.windSpeed.toFixed(0)} kt ${touched.windDir}`}</Text></View><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.pressure')}</Text><Text style={styles.infoPressure}>{touched.pressure === undefined ? t('map.layerUnavailable') : `${touched.pressure.toFixed(1)} hPa`}</Text></View></View>
               </View>
@@ -599,24 +677,24 @@ const styles = StyleSheet.create({
   header: {
     position: 'absolute',
     zIndex: 10,
-    top: 48,
-    left: 16,
-    right: 76,
-    maxHeight: 68,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    left: 14,
+    width: 224,
+    minHeight: 76,
+    paddingHorizontal: 15,
+    paddingVertical: 11,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     shadowColor: '#202124',
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOpacity: 0.09,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 2,
+    marginBottom: 7,
   },
   headerBottom: {
     flexDirection: 'row',
@@ -624,17 +702,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   zoneName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#202124',
+    color: '#142F49',
+  },
+  modelName: {
+    color: '#1967D2',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   fileDateOld: {
     color: '#D06A2D',
   },
   status: {
     fontFamily: 'SpaceMono_400Regular',
-    fontSize: 12,
+    fontSize: 10,
     color: '#5F6368',
+    marginTop: 2,
   },
   refreshHint: {
     fontFamily: 'SpaceMono_400Regular',
@@ -658,16 +744,17 @@ const styles = StyleSheet.create({
   infoPanel: {
     position: 'absolute',
     zIndex: 14,
-    left: 16,
-    right: 16,
-    backgroundColor: 'rgba(255,255,255,0.97)',
-    borderRadius: 20,
-    padding: 14,
-    elevation: 6,
+    left: 14,
+    right: 82,
+    maxWidth: 320,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 24,
+    padding: 13,
+    elevation: 4,
     shadowColor: '#202124',
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 5 },
   },
   mapAttribution: {
     position: 'absolute',
@@ -683,21 +770,22 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '600',
   },
-  layersButton: { position: 'absolute', top: 50, right: 16, width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.96)', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 8 },
-  infoButton: { position: 'absolute', top: 110, right: 16, width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.96)', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 8 },
+  layersButton: { position: 'absolute', right: 14, width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#202124', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  infoButton: { position: 'absolute', right: 14, width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#202124', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   weatherOverlayHidden: { opacity: 0 },
-  timeline: { position: 'absolute', zIndex: 12, left: 16, right: 16, minHeight: 66, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.95)', elevation: 5, shadowColor: '#202124', shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-  timelineStep: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E8F0FE', alignItems: 'center', justifyContent: 'center' },
+  timeline: { position: 'absolute', zIndex: 12, left: 14, right: 14, minHeight: 112, borderRadius: 26, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12, backgroundColor: 'rgba(255,255,255,0.92)', elevation: 4, shadowColor: '#202124', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 6 } },
+  timelineTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  timelineStep: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EDF3FE', alignItems: 'center', justifyContent: 'center' },
   timelineStepDisabled: { opacity: 0.35 },
-  timelineCopy: { flex: 1, gap: 7 },
-  timelineLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  timelineHour: { color: '#202124', fontSize: 14, fontWeight: '700' },
-  timelineDate: { color: '#5F6368', fontSize: 10 },
+  timelineCopy: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  timelineHour: { color: '#142F49', fontSize: 16, fontWeight: '800' },
+  timelineDate: { color: '#5F6368', fontSize: 11, marginTop: 2 },
   timelineWarning: { color: '#B06000', fontSize: 10, fontWeight: '700' },
-  timelineTrack: { height: 24, borderRadius: 12, backgroundColor: '#DADCE0', justifyContent: 'center', position: 'relative' },
+  timelineTrackArea: { marginTop: 9 },
+  timelineTrack: { height: 26, borderRadius: 13, backgroundColor: 'rgba(218,220,224,0.58)', justifyContent: 'center', position: 'relative' },
   timelineDotTarget: { position: 'absolute', marginLeft: -12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  timelineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#9AA0A6' },
-  timelineDotActive: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#1967D2' },
+  timelineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#9AA8B5' },
+  timelineDotActive: { width: 15, height: 15, borderRadius: 8, backgroundColor: '#1967D2', borderWidth: 3, borderColor: '#DDEAFF' },
   timelineDotPending: { backgroundColor: '#F9AB00' },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(32,33,36,0.28)' },
   sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 34 },
@@ -709,8 +797,8 @@ const styles = StyleSheet.create({
   sheetDetail: { color: '#5F6368', fontSize: 14 },
   infoHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   infoPlace: { flex: 1, color: '#202124', fontSize: 16, fontWeight: '700', paddingRight: 12 },
-  infoMetrics: { flexDirection: 'row', gap: 12, marginTop: 12 },
-  infoMetric: { flex: 1, backgroundColor: '#F8F9FA', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 },
+  infoMetrics: { flexDirection: 'row', gap: 8, marginTop: 9 },
+  infoMetric: { flex: 1, backgroundColor: 'rgba(244,247,250,0.72)', borderRadius: 18, paddingHorizontal: 11, paddingVertical: 9 },
   infoLabel: { color: '#80868B', fontSize: 11, fontWeight: '600', marginBottom: 3 },
   infoPressure: { fontFamily: 'SpaceMono_700Bold', fontSize: 14, color: '#17324D' },
   infoWind: { fontFamily: 'SpaceMono_700Bold', fontSize: 14, color: '#1264D3' },

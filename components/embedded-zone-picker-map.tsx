@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
-import Svg, { Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 
 import { WORLD_LAND_RINGS } from '@/assets/map/world-land';
 import { zoneFromVisibleBounds } from '@/lib/downloadZone';
 import type { GribZone } from '@/lib/gribTypes';
 import { useI18n } from '@/lib/i18n';
+import type { UserLocation } from '@/lib/location';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 12;
@@ -17,6 +18,7 @@ interface GestureStart extends Viewport { x: number; y: number; distance: number
 interface ZonePickerMapProps {
   zone: GribZone;
   focusRequest?: number;
+  userLocation?: UserLocation | null;
   onChange: (zone: GribZone) => void;
 }
 
@@ -74,7 +76,7 @@ function viewportForZone(zone: GribZone, size: Size): Viewport {
   });
 }
 
-export function EmbeddedZonePickerMap({ zone, focusRequest = 0, onChange }: ZonePickerMapProps) {
+export function EmbeddedZonePickerMap({ zone, focusRequest = 0, userLocation, onChange }: ZonePickerMapProps) {
   const { language } = useI18n();
   const [size, setSize] = useState<Size>({ width: 1, height: 1 });
   const [viewport, setViewport] = useState<Viewport>({ centerLon: 0, centerLat: 0, zoom: 1 });
@@ -144,6 +146,10 @@ export function EmbeddedZonePickerMap({ zone, focusRequest = 0, onChange }: Zone
           return <Line key={`lat-${lat}`} x1={0} x2={size.width} y1={y} y2={y} stroke="#BBD3DF" strokeWidth={1} />;
         })}
         {polygons.map((points, index) => <Polygon key={index} points={points} fill="#F7F3E8" stroke="#829A91" strokeWidth={0.7} />)}
+        {userLocation && (() => {
+          const point = geoToScreen(userLocation.lon, userLocation.lat, size, viewport);
+          return <><Circle cx={point.x} cy={point.y} r={12} fill="#1967D2" opacity={0.2} /><Circle cx={point.x} cy={point.y} r={6} fill="#1967D2" stroke="#FFFFFF" strokeWidth={2} /></>;
+        })()}
         <SvgText x={14} y={22} fill="#31576B" fontSize={11} fontFamily="SpaceMono_700Bold">{viewport.zoom.toFixed(1)}×</SvgText>
       </Svg>
     </View>
