@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1967d2">
-  <meta name="description" content="Gribzy is a simple offline GRIB weather viewer for outdoor activities. Join the free Android closed beta.">
-  <meta property="og:title" content="Gribzy — Offline weather, ready to go">
-  <meta property="og:description" content="Help test a simple offline GRIB viewer for sailing, hiking, paragliding and light aviation.">
+  <meta name="description" content="Gribzy is the modern GRIB viewer for mobile. Join the free Android closed beta.">
+  <meta property="og:title" content="Gribzy — The modern GRIB viewer">
+  <meta property="og:description" content="Open local GRIB weather, download GFS forecasts and keep pressure and wind available offline.">
   <meta property="og:image" content="https://momisback.github.io/gribzy/assets/gribzy-icon.png">
   <meta property="og:type" content="website">
-  <title>Gribzy — Offline GRIB weather</title>
+  <title>Gribzy — The modern GRIB viewer</title>
   <link rel="icon" href="assets/gribzy-icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -17,7 +17,8 @@
   <header class="nav wrap">
     <a class="brand" href="#top" aria-label="Gribzy home"><img src="assets/gribzy-icon.png" alt=""><span>Gribzy</span></a>
     <nav aria-label="Main navigation">
-      <a href="#features" data-en="Features" data-fr="Fonctions">Features</a>
+      <a href="#why" data-en="Why Gribzy" data-fr="Pourquoi Gribzy">Why Gribzy</a>
+      <a href="#product" data-en="Product" data-fr="Produit">Product</a>
       <a href="#testing" data-en="Closed beta" data-fr="Bêta fermée">Closed beta</a>
       <button class="language" id="language" type="button" aria-label="Afficher le site en français">FR</button>
     </nav>
@@ -25,56 +26,140 @@
 
   <main id="top">
     <section class="hero wrap">
-      <div class="hero-copy">
-        <span class="eyebrow" data-en="Android closed beta · Testers wanted" data-fr="Bêta fermée Android · Testeurs recherchés">Android closed beta · Testers wanted</span>
-        <h1 data-lines data-en="Offline weather,|ready to go." data-fr="La météo hors ligne,|prête à partir.">Offline weather,<br>ready to go.</h1>
-        <p class="lead" data-en="Gribzy is a focused GRIB weather viewer for sailors, hikers, pilots and paragliders. Prepare your area online, then keep pressure and wind available when the network disappears." data-fr="Gribzy est un lecteur météo GRIB épuré pour la voile, la randonnée, l’aviation légère et le parapente. Préparez votre zone en ligne, puis gardez pression et vent lorsque le réseau disparaît.">Gribzy is a focused GRIB weather viewer for sailors, hikers, pilots and paragliders. Prepare your area online, then keep pressure and wind available when the network disappears.</p>
+      <div class="hero-copy reveal">
+        <span class="eyebrow" data-en="Free Android closed beta" data-fr="Bêta fermée Android gratuite">Free Android closed beta</span>
+        <h1 data-lines data-en="GRIB files,|made for mobile." data-fr="Les fichiers GRIB,|pensés pour mobile.">GRIB files,<br>made for mobile.</h1>
+        <p class="lead" data-en="Open local GRIB weather and keep pressure and wind available offline. No account. No ads. Everything stays on your device." data-fr="Ouvrez vos données météo GRIB et gardez pression et vent hors ligne. Sans compte, sans publicité. Tout reste sur votre appareil.">Open local GRIB weather and keep pressure and wind available offline. No account. No ads. Everything stays on your device.</p>
         <div class="actions">
           <a class="button primary" href="https://forms.gle/99AReDfS2BfranvbA" data-en="Join the closed beta" data-fr="Rejoindre la bêta fermée">Join the closed beta</a>
         </div>
-        <p class="small" data-en="Free beta · No account · No ads · No tracking" data-fr="Bêta gratuite · Sans compte · Sans publicité · Sans tracking">Free beta · No account · No ads · No tracking</p>
+        <div class="trust-row" aria-label="Beta availability">
+          <span><b>✓</b><span data-en="Free beta" data-fr="Bêta gratuite">Free beta</span></span>
+          <span><b>✓</b> Android</span>
+          <span><b>✓</b> Google Play</span>
+        </div>
       </div>
-      <aside class="test-card" aria-label="Current beta capabilities">
-        <div class="card-top"><span class="live-dot"></span><span data-en="CURRENT BETA" data-fr="BÊTA ACTUELLE">CURRENT BETA</span></div>
-        <img src="assets/gribzy-icon.png" alt="Gribzy polar bear app icon">
-        <h2 data-en="A forecast you can carry" data-fr="Une prévision à emporter">A forecast you can carry</h2>
-        <ul>
-          <li data-en="Choose any area on the world map" data-fr="Choisir une zone sur la carte mondiale">Choose any area on the world map</li>
-          <li data-en="Download targeted GFS data" data-fr="Télécharger des données GFS ciblées">Download targeted GFS data</li>
-          <li data-en="Read pressure and 10 m wind offline" data-fr="Lire pression et vent à 10 m hors ligne">Read pressure and 10 m wind offline</li>
-          <li data-en="Keep and rename files locally" data-fr="Conserver et renommer les fichiers localement">Keep and rename files locally</li>
-        </ul>
-      </aside>
-    </section>
 
-    <section class="section wrap" id="features">
-      <div class="section-heading"><span class="kicker" data-en="WHY GRIBZY" data-fr="POURQUOI GRIBZY">WHY GRIBZY</span><h2 data-en="The map and the weather. Nothing else." data-fr="La carte et la météo. Rien d’autre.">The map and the weather. Nothing else.</h2></div>
-      <div class="features">
-        <article><span class="icon">↓</span><h3 data-en="Offline-first" data-fr="Pensé hors ligne">Offline-first</h3><p data-en="Downloaded GRIB files remain on your device and can be reopened without a connection." data-fr="Les GRIB téléchargés restent sur votre appareil et peuvent être rouverts sans connexion.">Downloaded GRIB files remain on your device and can be reopened without a connection.</p></article>
-        <article><span class="icon">◎</span><h3 data-en="World coverage" data-fr="Couverture mondiale">World coverage</h3><p data-en="Pan, pinch and use GPS to place a download area anywhere on the world map." data-fr="Déplacez, pincez et utilisez le GPS pour placer une zone partout dans le monde.">Pan, pinch and use GPS to place a download area anywhere on the world map.</p></article>
-        <article><span class="icon">≈</span><h3 data-en="Calm by design" data-fr="Épuré par nature">Calm by design</h3><p data-en="A clear, one-handed interface built for sunlight, movement and large touch targets." data-fr="Une interface claire, utilisable à une main, au soleil et en mouvement.">A clear, one-handed interface built for sunlight, movement and large touch targets.</p></article>
+      <div class="product-hero reveal" aria-label="Preview of the Gribzy map">
+        <div class="phone">
+          <div class="phone-speaker"></div>
+          <div class="phone-screen">
+            <div class="map-ui">
+              <div class="map-grid"></div>
+              <div class="land land-one"></div>
+              <div class="land land-two"></div>
+              <svg class="weather-lines" viewBox="0 0 320 600" aria-hidden="true">
+                <path d="M-20 104 C60 48 132 136 220 82 S342 45 360 104"/>
+                <path d="M-25 154 C65 98 142 190 231 126 S338 103 365 155"/>
+                <path d="M-10 232 C72 178 139 254 225 209 S320 181 350 230"/>
+                <path d="M-12 304 C80 256 142 332 232 282 S325 255 352 302"/>
+                <g class="wind-arrows">
+                  <path d="M56 188 l18 -12 m0 0 l-8 1 m8 -1 l-3 8"/>
+                  <path d="M132 166 l14 17 m0 0 l-2 -8 m2 8 l-8 -1"/>
+                  <path d="M226 184 l20 -7 m0 0 l-8 -2 m8 2 l-5 7"/>
+                  <path d="M82 270 l18 9 m0 0 l-5 -6 m5 6 l-8 2"/>
+                  <path d="M177 251 l10 -19 m0 0 l-6 6 m6 -6 l2 8"/>
+                  <path d="M259 290 l19 3 m0 0 l-7 -5 m7 5 l-7 4"/>
+                  <path d="M44 350 l17 -11 m0 0 l-8 1 m8 -1 l-3 8"/>
+                  <path d="M148 338 l15 15 m0 0 l-3 -8 m3 8 l-8 -1"/>
+                  <path d="M248 366 l19 -8 m0 0 l-8 -1 m8 1 l-5 7"/>
+                </g>
+              </svg>
+              <div class="map-chip"><span>Pressure</span><b>⌄</b></div>
+              <div class="map-actions"><span>⌖</span><span>◎</span></div>
+              <div class="weather-card">
+                <div><small>WIND</small><strong>17 kt SW</strong></div>
+                <div><small>PRESSURE</small><strong>1012.4 hPa</strong></div>
+              </div>
+              <div class="timeline">
+                <button aria-label="Previous forecast">‹</button>
+                <div><div class="timeline-label"><b>H+6</b><span>Tue 28 Jul · 12:00 UTC</span></div><div class="timeline-line"><i></i><i></i><i class="active"></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+                <button aria-label="Next forecast">›</button>
+              </div>
+              <div class="app-tabs"><span>▤<small>Files</small></span><span class="selected">⌖<small>Map</small></span><span>⚙<small>Settings</small></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-values">
+          <article><span>↓</span><div><b>Offline</b><small data-en="Forecasts stay available" data-fr="Prévisions toujours disponibles">Forecasts stay available</small></div></article>
+          <article><span>◉</span><div><b>Local-first</b><small data-en="Files stay on your phone" data-fr="Les fichiers restent sur le téléphone">Files stay on your phone</small></div></article>
+          <article><span>○</span><div><b>No tracking</b><small data-en="No account or profiling" data-fr="Sans compte ni profilage">No account or profiling</small></div></article>
+        </div>
       </div>
     </section>
 
-    <section class="testing" id="testing"><div class="wrap testing-grid">
-      <div><span class="kicker" data-en="HELP SHAPE V1" data-fr="AIDEZ À CRÉER LA V1">HELP SHAPE V1</span><h2 data-en="Take Gribzy outside." data-fr="Emmenez Gribzy dehors.">Take Gribzy outside.</h2><p data-en="We need Android testers with real outdoor use cases. Technical experience is not required—clear observations are more valuable." data-fr="Nous cherchons des testeurs Android avec de vrais usages outdoor. Aucune expérience technique n’est nécessaire : des observations claires suffisent.">We need Android testers with real outdoor use cases. Technical experience is not required—clear observations are more valuable.</p></div>
-      <ol>
-        <li><strong data-en="Install" data-fr="Installer">Install</strong><span data-en="Try the preview APK on a physical Android phone." data-fr="Essayez l’APK preview sur un téléphone Android réel.">Try the preview APK on a physical Android phone.</span></li>
-        <li><strong data-en="Prepare" data-fr="Préparer">Prepare</strong><span data-en="Select a zone, use GPS and download a GRIB." data-fr="Sélectionnez une zone, utilisez le GPS et téléchargez un GRIB.">Select a zone, use GPS and download a GRIB.</span></li>
-        <li><strong data-en="Go offline" data-fr="Passer hors ligne">Go offline</strong><span data-en="Restart in airplane mode and inspect the saved forecast." data-fr="Redémarrez en mode avion et consultez la prévision enregistrée.">Restart in airplane mode and inspect the saved forecast.</span></li>
-        <li><strong data-en="Report" data-fr="Signaler">Report</strong><span data-en="Tell us what worked, what failed and what felt unclear." data-fr="Dites-nous ce qui fonctionne, échoue ou manque de clarté.">Tell us what worked, what failed and what felt unclear.</span></li>
-      </ol>
-    </div></section>
-
-    <section class="section wrap honest">
-      <div><span class="kicker" data-en="HONEST BETA" data-fr="BÊTA TRANSPARENTE">HONEST BETA</span><h2 data-en="Useful today. Still growing." data-fr="Déjà utile. Encore en construction.">Useful today. Still growing.</h2></div>
-      <div class="columns"><div><h3 data-en="Available now" data-fr="Disponible maintenant">Available now</h3><p data-en="GFS area download, local library, pressure, isobars, wind, detailed online map and a basic embedded offline world map." data-fr="Téléchargement GFS par zone, bibliothèque locale, pression, isobares, vent, carte détaillée en ligne et fond mondial hors ligne simplifié.">GFS area download, local library, pressure, isobars, wind, detailed online map and a basic embedded offline world map.</p></div><div><h3 data-en="Coming next" data-fr="Prochainement">Coming next</h3><p data-en="Multiple forecast hours, a real timeline, temperature, rain and downloadable detailed offline maps." data-fr="Plusieurs échéances, une vraie timeline, température, pluie et cartes détaillées téléchargeables hors ligne.">Multiple forecast hours, a real timeline, temperature, rain and downloadable detailed offline maps.</p></div></div>
+    <section class="section wrap" id="why">
+      <div class="section-heading reveal"><span class="kicker">WHY GRIBZY</span><h2 data-en="Weather data without the desktop baggage." data-fr="Les données météo, sans l’héritage du logiciel desktop.">Weather data without the desktop baggage.</h2></div>
+      <div class="features compact-grid">
+        <article class="reveal"><span class="feature-number">01</span><h3 data-en="Fast" data-fr="Rapide">Fast</h3><p data-en="Open a GRIB and reach the weather in seconds." data-fr="Ouvrez un GRIB et accédez aux données en quelques secondes.">Open a GRIB and reach the weather in seconds.</p></article>
+        <article class="reveal"><span class="feature-number">02</span><h3>Offline</h3><p data-en="Downloaded forecasts remain useful without a network." data-fr="Les prévisions téléchargées restent utiles sans réseau.">Downloaded forecasts remain useful without a network.</p></article>
+        <article class="reveal"><span class="feature-number">03</span><h3 data-en="Simple" data-fr="Simple">Simple</h3><p data-en="Built for a phone from the start, not adapted from desktop." data-fr="Pensé dès le départ pour le téléphone, pas adapté du desktop.">Built for a phone from the start, not adapted from desktop.</p></article>
+      </div>
     </section>
 
-    <section class="cta wrap"><h2 data-en="Ready to test in the real world?" data-fr="Prêt à tester sur le terrain ?">Ready to test in the real world?</h2><a class="button primary" href="https://forms.gle/99AReDfS2BfranvbA" data-en="Join the closed beta" data-fr="Rejoindre la bêta fermée">Join the closed beta</a></section>
+    <section class="section soft-section">
+      <div class="wrap">
+        <div class="section-heading reveal"><span class="kicker" data-en="DESIGNED FOR" data-fr="CONÇU POUR">DESIGNED FOR</span><h2 data-en="One focused tool. Many real-world uses." data-fr="Un outil précis. Des usages bien réels.">One focused tool. Many real-world uses.</h2></div>
+        <div class="use-grid">
+          <article class="reveal"><span>⛵</span><b data-en="Sailing" data-fr="Voile">Sailing</b></article>
+          <article class="reveal"><span>🪂</span><b data-en="Paragliding" data-fr="Parapente">Paragliding</b></article>
+          <article class="reveal"><span>✈</span><b data-en="Aviation" data-fr="Aviation">Aviation</b></article>
+          <article class="reveal"><span>🥾</span><b data-en="Hiking" data-fr="Randonnée">Hiking</b></article>
+          <article class="reveal"><span>🌦</span><b data-en="Meteorology" data-fr="Météorologie">Meteorology</b></article>
+          <article class="reveal"><span>⌬</span><b data-en="Research" data-fr="Recherche">Research</b></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap product-section" id="product">
+      <div class="section-heading reveal"><span class="kicker" data-en="THE PRODUCT" data-fr="LE PRODUIT">THE PRODUCT</span><h2 data-en="From a file to a forecast you can use." data-fr="Du fichier à une prévision vraiment utilisable.">From a file to a forecast you can use.</h2><p data-en="A direct mobile workflow for opening, downloading and inspecting GRIB weather." data-fr="Un parcours mobile direct pour ouvrir, télécharger et inspecter la météo GRIB.">A direct mobile workflow for opening, downloading and inspecting GRIB weather.</p></div>
+      <div class="screens">
+        <article class="screen-card screen-library reveal">
+          <div class="screen-copy"><span>01</span><h3 data-en="Keep files close" data-fr="Gardez vos fichiers à portée">Keep files close</h3><p data-en="Open, rename and revisit local forecasts without an account." data-fr="Ouvrez, renommez et retrouvez vos prévisions locales sans compte.">Open, rename and revisit local forecasts without an account.</p></div>
+          <div class="mini-screen">
+            <div class="mini-header"><img src="assets/gribzy-icon.png" alt=""><b>Gribzy</b></div>
+            <h4 data-en="Your weather files" data-fr="Vos fichiers météo">Your weather files</h4>
+            <button data-en="Open a GRIB file" data-fr="Ouvrir un fichier GRIB">Open a GRIB file</button>
+            <small data-en="RECENT" data-fr="RÉCENTS">RECENT</small>
+            <div class="file-row"><i>▤</i><div><b>Brittany</b><span>GFS · 12.8 MB · 06 UTC</span></div><em>⋮</em></div>
+            <div class="file-row"><i>▤</i><div><b>Alps</b><span>Imported · 4.2 MB</span></div><em>⋮</em></div>
+          </div>
+        </article>
+
+        <article class="screen-card screen-download reveal">
+          <div class="screen-copy"><span>02</span><h3 data-en="Download only what you need" data-fr="Téléchargez uniquement l’essentiel">Download only what you need</h3><p data-en="Frame the visible area, then keep nine GFS forecast hours locally." data-fr="Cadrez la zone visible, puis conservez neuf échéances GFS localement.">Frame the visible area, then keep nine GFS forecast hours locally.</p></div>
+          <div class="mini-screen selection-screen">
+            <div class="selection-map"><div class="selection-land"></div><div class="location-pin">●</div></div>
+            <div class="selection-top"><b>Gribzy</b><span data-en="My location" data-fr="Ma position">My location</span></div>
+            <div class="download-sheet"><b>Brittany</b><small>45.5° / 50.5° · −8° / 2°</small><em data-en="VISIBLE AREA" data-fr="ZONE VISIBLE">VISIBLE AREA</em><button data-en="Download forecast" data-fr="Télécharger la prévision">Download forecast</button></div>
+          </div>
+        </article>
+
+        <article class="screen-card screen-map reveal">
+          <div class="screen-copy"><span>03</span><h3 data-en="Inspect every forecast hour" data-fr="Inspectez chaque échéance">Inspect every forecast hour</h3><p data-en="Move through H+0 to H+24 and inspect pressure and 10 m wind at any point." data-fr="Parcourez H+0 à H+24 et inspectez pression et vent à 10 m en tout point.">Move through H+0 to H+24 and inspect pressure and 10 m wind at any point.</p></div>
+          <div class="wide-map">
+            <div class="map-grid"></div><div class="wide-land"></div>
+            <svg viewBox="0 0 760 380" aria-hidden="true"><path d="M-30 75 C120 5 205 140 355 68 S610 8 800 92"/><path d="M-20 142 C120 70 228 208 380 127 S637 75 800 155"/><path d="M-20 248 C124 174 240 312 396 229 S632 178 800 256"/><path d="M-30 324 C122 253 258 390 408 305 S650 258 800 333"/></svg>
+            <div class="wide-weather-card"><small>WEATHER POINT</small><b>18 kt SW</b><strong>1011.8 hPa</strong></div>
+            <div class="wide-timeline"><button>‹</button><div><b>H+12</b><span>Tue 28 Jul · 18:00 UTC</span><i></i></div><button>›</button></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="testing" id="testing">
+      <div class="wrap beta-grid reveal">
+        <div><span class="kicker" data-en="CLOSED BETA" data-fr="BÊTA FERMÉE">CLOSED BETA</span><h2 data-en="Help shape Gribzy." data-fr="Aidez-nous à façonner Gribzy.">Help shape Gribzy.</h2></div>
+        <div><p data-en="Gribzy is still in active development. We are looking for people who already use GRIB files in the real world. Test it outside, tell us what feels unclear and help us make the essentials dependable." data-fr="Gribzy est encore en développement actif. Nous recherchons des personnes qui utilisent déjà des fichiers GRIB sur le terrain. Testez l’application dehors, dites-nous ce qui manque de clarté et aidez-nous à fiabiliser l’essentiel.">Gribzy is still in active development. We are looking for people who already use GRIB files in the real world. Test it outside, tell us what feels unclear and help us make the essentials dependable.</p><a class="button beta-button" href="https://forms.gle/99AReDfS2BfranvbA" data-en="Join the Android beta" data-fr="Rejoindre la bêta Android">Join the Android beta</a><small data-en="Free beta · Android · Application required" data-fr="Bêta gratuite · Android · Inscription requise">Free beta · Android · Application required</small></div>
+      </div>
+    </section>
   </main>
 
-  <footer class="wrap"><span>© 2026 Gribzy</span><p data-en="Gribzy does not replace official forecasts, warnings or safety briefings." data-fr="Gribzy ne remplace pas les prévisions, alertes ou briefings de sécurité officiels.">Gribzy does not replace official forecasts, warnings or safety briefings.</p><a href="https://github.com/MOMISBACK/gribzy">GitHub</a></footer>
+  <footer class="wrap" id="privacy">
+    <a class="footer-brand" href="#top"><img src="assets/gribzy-icon.png" alt=""><b>Gribzy</b></a>
+    <p data-en="No account, cloud or tracking. Gribzy does not replace official forecasts or warnings." data-fr="Sans compte, cloud ni tracking. Gribzy ne remplace pas les prévisions ou alertes officielles.">No account, cloud or tracking. Gribzy does not replace official forecasts or warnings.</p>
+    <div><a href="https://github.com/MOMISBACK/gribzy">GitHub</a><a href="#privacy" data-en="Privacy" data-fr="Confidentialité">Privacy</a><a href="https://forms.gle/99AReDfS2BfranvbA">Contact</a></div>
+  </footer>
   <script src="language.js"></script>
 </body>
 </html>
