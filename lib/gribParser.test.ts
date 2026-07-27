@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { computeIsobares, decodeValues, readDataRepresentation, validateGribForApp } from './gribParser';
 import { NOAA_GFS_FIXTURE } from '../tests/fixtures/grib/noaaFixture';
+import { XYGRIB_COMPLEX_FIXTURE } from '../tests/fixtures/grib/xygribComplexFixture';
 
 function fixtureBytes() {
   return Uint8Array.from(Buffer.from(NOAA_GFS_FIXTURE, 'base64'));
@@ -31,5 +32,26 @@ describe('isobars', () => {
   it('creates a contour through a simple pressure field', () => {
     const result = computeIsobares(new Float32Array([1000, 1010, 1000, 1010]), 2, 2, [1005]);
     expect(result.get(1005)).toHaveLength(1);
+  });
+});
+
+describe('GRIB2 XyGrib complex packing fixture', () => {
+  it('decodes template 5.3 with second-order spatial differencing', async () => {
+    const bytes = Uint8Array.from(Buffer.from(XYGRIB_COMPLEX_FIXTURE, 'base64'));
+    const representation = readDataRepresentation(bytes, 0);
+    const values = await decodeValues(bytes, 0, representation);
+
+    expect(representation).toMatchObject({
+      template: 3,
+      numberOfValues: 960,
+      groupSplittingMethod: 1,
+      missingValueManagement: 0,
+      spatialDifferencingOrder: 2,
+    });
+    expect(values).toHaveLength(960);
+    expect(values[0]).toBeCloseTo(101943.578125, 3);
+    expect(values[values.length - 1]).toBeCloseTo(101796.375, 3);
+    expect(Math.min(...values)).toBeCloseTo(101374.375, 3);
+    expect(Math.max(...values)).toBeCloseTo(102264.7734375, 3);
   });
 });

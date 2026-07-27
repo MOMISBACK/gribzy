@@ -13,12 +13,12 @@ type Props = {
   north: number;
   onAvailabilityChange?: (available: boolean) => void;
   onViewportChange?: (bounds: [number, number, number, number]) => void;
+  onViewportPreviewChange?: (bounds: [number, number, number, number]) => void;
   onMapPress?: (longitude: number, latitude: number) => void;
-  onInteractionChange?: (moving: boolean) => void;
   showUserLocation?: boolean;
 };
 
-export function OnlineTileLayer({ width, height, west, east, south, north, onAvailabilityChange, onViewportChange, onMapPress, onInteractionChange, showUserLocation }: Props) {
+export function OnlineTileLayer({ width, height, west, east, south, north, onAvailabilityChange, onViewportChange, onViewportPreviewChange, onMapPress, showUserLocation }: Props) {
   useEffect(() => {
     onAvailabilityChange?.(false);
   }, [east, height, north, onAvailabilityChange, south, west, width]);
@@ -39,12 +39,11 @@ export function OnlineTileLayer({ width, height, west, east, south, north, onAva
         touchPitch={false}
         onDidFinishLoadingMap={() => onAvailabilityChange?.(true)}
         onDidFailLoadingMap={() => onAvailabilityChange?.(false)}
-        onRegionWillChange={(event) => {
-          if ((event.nativeEvent as ViewStateChangeEvent).userInteraction) onInteractionChange?.(true);
+        onRegionIsChanging={(event) => {
+          onViewportPreviewChange?.((event.nativeEvent as ViewStateChangeEvent).bounds);
         }}
         onRegionDidChange={(event) => {
           onViewportChange?.((event.nativeEvent as ViewStateChangeEvent).bounds);
-          onInteractionChange?.(false);
         }}
         onPress={(event) => {
           const [longitude, latitude] = event.nativeEvent.lngLat;

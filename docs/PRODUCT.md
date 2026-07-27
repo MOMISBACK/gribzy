@@ -78,8 +78,14 @@ Les qualités recherchées, dans l'ordre, sont :
 L'accueil est introduit par une bannière horizontale fine utilisant le symbole Gribzy,
 sans détourner l'attention des actions. « Ouvrir un fichier GRIB » reste l'action
 principale. Le téléchargement d'une zone est secondaire. La liste récente montre un
-nom lisible, le modèle, le run, la taille et la date, avec ouverture, renommage et
-suppression confirmée.
+nom lisible, puis des métadonnées hiérarchisées — modèle, run, taille et date — dans
+des cartes compactes, avec ouverture, renommage et suppression confirmée.
+
+L'import évalue chaque message indépendamment. Un fichier contenant au moins une
+couche exploitable reste ouvrable même si d'autres messages sont incompatibles. Une
+fiche indique alors clairement la prise en charge limitée, les couches disponibles et
+les messages ignorés. Les détails techniques sont repliables et copiables localement.
+Aucun fichier, diagnostic ou métadonnée n'est envoyé automatiquement.
 
 ### Téléchargement
 
@@ -98,18 +104,28 @@ services actifs, le point utilisateur apparaît dès l'ouverture sans recentrage
 un toucher demande l'autorisation si nécessaire, actualise le point et centre la carte.
 La fiche de zone affiche seulement son centre géographique, et non ses quatre bornes.
 L'attribution OpenFreeMap est accessible dans Réglages plutôt que superposée à cet écran.
+Elle nomme explicitement la « zone sélectionnée » plutôt que de présenter un lieu
+approximatif comme une limite exacte. Le modèle et la résolution fixes peuvent être
+affichés avant téléchargement ; le run ne doit apparaître qu'après sa résolution réelle.
 
 ### Carte
 
-La carte occupe presque tout l'écran. Elle conserve un sélecteur de paramètre compact,
-des actions flottantes, une timeline visible et une fiche ponctuelle en bottom sheet
-ou carte flottante. Le pan et le zoom ne doivent jamais entrer en conflit avec un
-défilement d'interface.
+La carte occupe presque tout l'écran. Elle conserve des actions flottantes compactes,
+une timeline visible et une fiche ponctuelle en carte flottante. Aucun panneau de
+paramètre permanent ne masque le haut de la carte. Le pan et le zoom ne doivent jamais
+entrer en conflit avec un défilement d'interface.
 
 La météo domine visuellement le fond et les contrôles : isobares contrastées et
 étiquetées, vecteurs de vent lisibles, légère teinte de pression non assimilable à une
 heatmap, surfaces translucides compactes et transitions de frame de 150 à 250 ms. Un
 contrôle de lecture automatique ne doit apparaître que lorsque cette lecture existe.
+Le champ de vent privilégie une densité modérée et des flèches plus grandes plutôt
+qu'une couverture exhaustive illisible. La timeline conserve une ligne et des
+graduations explicites, avec une échéance active fortement identifiable.
+Un point météo est identifié par ses coordonnées géographiques, reste sélectionné lors
+d'un changement d'échéance et met à jour ses valeurs uniquement lorsque la nouvelle
+frame complète est prête. La timeline ne montre aucun état intermédiaire susceptible
+de faire croire à une échéance active avant son chargement atomique.
 
 ### Réglages
 

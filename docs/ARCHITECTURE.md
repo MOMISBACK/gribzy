@@ -85,8 +85,10 @@ Règles :
    angulaire, `Di`, `Dj`, ses extrémités et le scanning mode 64.
 7. Refuser les grilles traversant l'antiméridien, quasi régulières ou munies d'une
    liste optionnelle.
-8. Accepter le packing simple, sans bitmap, et décoder les entiers signés GRIB en
-   représentation signe-module.
+8. Accepter le packing simple 5.0 et le packing complexe 5.3 avec différenciation
+   spatiale d'ordre 1 ou 2. Pour 5.3, accepter uniquement le découpage de groupes
+   méthode 1, sans gestion de valeurs manquantes ; les descripteurs signés utilisent
+   la représentation signe-module. Les bitmaps restent refusés.
 9. Apparier U/V uniquement lorsqu'échéance, référence, niveau, processus et grille
    coïncident.
 10. Utiliser exclusivement la section 3 pour le placement, l'inspection bilinéaire,
@@ -99,6 +101,21 @@ uniquement la couche vent indisponible ; PRMSL reste affichable. Une frame sans 
 couche exploitable est rejetée. Le lecteur conserve la frame affichée pendant le
 décodage de la suivante et ne remplace pression et vent qu'en une seule validation.
 Le cache en mémoire est limité à la frame courante et ses deux voisines.
+
+L'inventaire de compatibilité précède l'import et inspecte chaque message GRIB de
+manière indépendante. Il produit un statut `supported`, `partially-supported` ou
+`unsupported`, ainsi que des issues structurées par édition, templates de grille,
+produit et données, scanning mode, bitmap, niveau, variable ou structure malformée.
+Un message incompatible n'entre jamais dans les descripteurs de frames, mais ne bloque
+pas les autres messages valides. Le rapport conserve localement l'édition, le centre,
+les templates, le scanning mode, le bitmap, la variable, le niveau et l'index du
+message. Le texte copié est construit depuis ce rapport, sans stack trace ni envoi
+réseau.
+
+Le point inspecté est conservé en longitude/latitude, jamais en pixels ni comme valeurs
+météo figées. Après le décodage complet d'une nouvelle frame, pression et vent sont
+réinterpolés aux mêmes coordonnées ; l'index, la date, les données et la fiche
+ponctuelle basculent ensemble.
 
 Ce périmètre est volontairement étroit. Un encodage non pris en charge est refusé
 avant stockage au lieu d'être interprété approximativement. La checklist de
@@ -114,8 +131,11 @@ L'overlay SVG reçoit les bornes Web Mercator visibles afin d'aligner projection
 inspection, pan et pincement.
 
 Le point GPS natif MapLibre est affiché lorsque la permission foreground est accordée.
-Pendant une interaction de caméra, l'overlay météo SVG est masqué puis réaffiché avec
-les bornes finales afin d'éviter toute dérive visuelle entre deux moteurs de rendu.
+Pendant une interaction de caméra, le dernier overlay météo SVG reste visible et reçoit
+uniquement une translation et une mise à l'échelle calculées depuis les bornes Web
+Mercator intermédiaires, sans mise à jour d'état React. À la fin du geste, les bornes
+stables reprojettent le rendu et la transformation est remise à l'identité dans le même
+commit de layout.
 La sélection native présente un fond neutre pendant le chargement d'OpenFreeMap et
 n'affiche Natural Earth qu'après un échec réel du fond en ligne.
 
@@ -169,7 +189,7 @@ La commande de référence est :
 npm run check
 ```
 
-Elle exécute lint, TypeScript et les tests Vitest. Les quarante-neuf tests actuels couvrent
+Elle exécute lint, TypeScript et les tests Vitest. Les tests actuels couvrent
 l'état réseau, la transaction multi-échéances, les métadonnées, les frames et le parseur. La fixture NOAA valide trois
 messages, la grille, le packing, des valeurs plausibles, la paire de vent et les
 isobares.

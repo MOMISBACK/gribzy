@@ -57,7 +57,7 @@ export async function decodeForecastFrame(
   bytes: Uint8Array,
   descriptor: ForecastFrameDescriptor
 ): Promise<ForecastFrame> {
-  const analyzed = analyzeGribForApp(bytes);
+  const analyzed = analyzeGribForApp(bytes, descriptor.messageIndexes);
   let pressure: PressureField | undefined;
   let wind: WindField | undefined;
 

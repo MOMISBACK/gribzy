@@ -9,8 +9,8 @@ type Props = {
   north: number;
   onAvailabilityChange?: (available: boolean) => void;
   onViewportChange?: (bounds: [number, number, number, number]) => void;
+  onViewportPreviewChange?: (bounds: [number, number, number, number]) => void;
   onMapPress?: (longitude: number, latitude: number) => void;
-  onInteractionChange?: (moving: boolean) => void;
   showUserLocation?: boolean;
 };
 

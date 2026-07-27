@@ -12,10 +12,11 @@ import type { ForecastFrame } from '@/lib/forecastFrame';
 import type { GribDataset } from '@/lib/gribTypes';
 import { getDatasetFile, listGribDatasets } from '@/lib/storage';
 import { localizeTechnicalMessage, useI18n } from '@/lib/i18n';
+import { computeOverlayTransform, type MapBounds } from '@/lib/overlayTransform';
 import { SpaceMono_400Regular, SpaceMono_700Bold, useFonts } from '@expo-google-fonts/space-mono';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { type ReactElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -45,21 +46,6 @@ function formatValidTime(validTime: string, language: 'en' | 'fr'): string {
   }).format(new Date(validTime));
 }
 
-function formatRunTime(runDate: string | undefined, runHour: string | undefined, language: 'en' | 'fr'): string {
-  if (!runDate || !runHour || runHour === '--') return '';
-  const year = Number(runDate.slice(0, 4));
-  const month = Number(runDate.slice(4, 6)) - 1;
-  const day = Number(runDate.slice(6, 8));
-  if (![year, month, day].every(Number.isFinite)) return `${runDate} · ${runHour} UTC`;
-  const date = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(year, month, day)));
-  return `${date} · ${runHour} UTC`;
-}
-
 const LAND_RINGS_WITH_BOUNDS = WORLD_LAND_RINGS.map((ring) => ({
   ring,
   west: Math.min(...ring.map(([longitude]) => longitude)),
@@ -78,31 +64,27 @@ export default function MapScreen() {
   const params = useLocalSearchParams<{ file?: string }>();
   const [dataset, setDataset] = useState<GribDataset | null>(null);
   const [status, setStatus] = useState(t('map.loading'));
-  const [fileInfo, setFileInfo] = useState<{
-    size: number;
-    modified: number;
-  } | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ size: number } | null>(null);
   const [displayedFrame, setDisplayedFrame] = useState<ForecastFrame | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [pendingFrameIndex, setPendingFrameIndex] = useState<number | null>(null);
   const frameCache = useRef(new Map<number, ForecastFrame>());
-  const [touched, setTouched] = useState<{
-    x: number;
-    y: number;
-    pressure?: number;
-    windSpeed?: number;
-    windDir?: string;
-  } | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<{ longitude: number; latitude: number } | null>(null);
   const [onlineMapAvailable, setOnlineMapAvailable] = useState(false);
-  const [mapMoving, setMapMoving] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
-  const [activeParameter, setActiveParameter] = useState<'pressure' | 'wind'>('pressure');
-  const [sheet, setSheet] = useState<'parameter' | 'layers' | 'info' | null>(null);
+  const [sheet, setSheet] = useState<'layers' | 'info' | null>(null);
   const [showIsobares, setShowIsobares] = useState(true);
   const [showWind, setShowWind] = useState(true);
-  const [viewport, setViewport] = useState<[number, number, number, number] | null>(null);
+  const [viewport, setViewport] = useState<MapBounds | null>(null);
+  const viewportRef = useRef<MapBounds | null>(null);
+  const resetOverlayTransformAfterCommit = useRef(false);
+  const overlayTranslateX = useRef(new Animated.Value(0)).current;
+  const overlayTranslateY = useRef(new Animated.Value(0)).current;
+  const overlayScaleX = useRef(new Animated.Value(1)).current;
+  const overlayScaleY = useRef(new Animated.Value(1)).current;
   const frameRequest = useRef(0);
   const frameTransition = useRef(new Animated.Value(1)).current;
+  const layerTransition = useRef(new Animated.Value(1)).current;
   const pressureData = displayedFrame?.pressure;
   const windData = displayedFrame?.wind;
   const frameGrid = pressureData?.grid ?? windData?.grid;
@@ -116,8 +98,43 @@ export default function MapScreen() {
     : [];
 
   useEffect(() => {
-    if (dataset) setViewport([dataset.zone.leftlon, dataset.zone.bottomlat, dataset.zone.rightlon, dataset.zone.toplat]);
+    if (dataset) {
+      const bounds: MapBounds = [dataset.zone.leftlon, dataset.zone.bottomlat, dataset.zone.rightlon, dataset.zone.toplat];
+      viewportRef.current = bounds;
+      setViewport(bounds);
+    }
   }, [dataset]);
+
+  const resetOverlayTransform = useCallback(() => {
+    overlayTranslateX.setValue(0);
+    overlayTranslateY.setValue(0);
+    overlayScaleX.setValue(1);
+    overlayScaleY.setValue(1);
+  }, [overlayScaleX, overlayScaleY, overlayTranslateX, overlayTranslateY]);
+
+  const previewViewport = useCallback((next: MapBounds) => {
+    const previous = viewportRef.current;
+    if (!previous) return;
+    const transform = computeOverlayTransform(previous, next, mapWidth, mapHeight);
+    if (!transform) return;
+    overlayScaleX.setValue(transform.scaleX);
+    overlayScaleY.setValue(transform.scaleY);
+    overlayTranslateX.setValue(transform.translateX);
+    overlayTranslateY.setValue(transform.translateY);
+  }, [mapHeight, mapWidth, overlayScaleX, overlayScaleY, overlayTranslateX, overlayTranslateY]);
+
+  const commitViewport = useCallback((next: MapBounds) => {
+    previewViewport(next);
+    viewportRef.current = next;
+    resetOverlayTransformAfterCommit.current = true;
+    setViewport(next);
+  }, [previewViewport]);
+
+  useLayoutEffect(() => {
+    if (!resetOverlayTransformAfterCommit.current) return;
+    resetOverlayTransformAfterCommit.current = false;
+    resetOverlayTransform();
+  }, [resetOverlayTransform, viewport]);
 
   useEffect(() => {
     void Location.requestForegroundPermissionsAsync()
@@ -158,8 +175,9 @@ export default function MapScreen() {
       }).join(' '));
   }, [projectLatitude, projectLongitude, viewport]);
 
-  const inspectAt = useCallback((longitude: number, latitude: number, x: number, y: number) => {
-    if (!displayedFrame) return;
+  const touched = useMemo(() => {
+    if (!displayedFrame || !selectedPoint) return null;
+    const { longitude, latitude } = selectedPoint;
     let pressure: number | undefined;
     let windSpeed: number | undefined;
     let windDir: string | undefined;
@@ -182,9 +200,15 @@ export default function MapScreen() {
         }
       }
     }
-    if (pressure === undefined && windSpeed === undefined) return;
-    setTouched({ x, y, pressure, windSpeed, windDir });
-  }, [displayedFrame]);
+    if (pressure === undefined && windSpeed === undefined) return null;
+    return {
+      x: projectLongitude(longitude),
+      y: projectLatitude(latitude),
+      pressure,
+      windSpeed,
+      windDir,
+    };
+  }, [displayedFrame, projectLatitude, projectLongitude, selectedPoint]);
 
   const readFrame = useCallback(async (metadata: GribDataset, index: number): Promise<ForecastFrame> => {
     const cached = frameCache.current.get(index);
@@ -219,14 +243,18 @@ export default function MapScreen() {
     if (index < 0 || index >= metadata.frames.length) return;
     const request = ++frameRequest.current;
     setPendingFrameIndex(index);
-    setTouched(null);
     try {
       const frame = await readFrame(metadata, index);
       if (request !== frameRequest.current) return;
       setDisplayedFrame(frame);
       setCurrentFrameIndex(index);
       const grid = frame.pressure?.grid ?? frame.wind?.grid;
-      if (grid && resetViewport) setViewport([grid.lon1, grid.lat1, grid.lon2, grid.lat2]);
+      if (grid && resetViewport) {
+        const bounds: MapBounds = [grid.lon1, grid.lat1, grid.lon2, grid.lat2];
+        viewportRef.current = bounds;
+        setViewport(bounds);
+        resetOverlayTransform();
+      }
       setStatus(frame.pressure
         ? `${frame.pressure.min.toFixed(0)}–${frame.pressure.max.toFixed(0)} hPa`
         : t('map.pressureUnavailable'));
@@ -235,7 +263,7 @@ export default function MapScreen() {
     } finally {
       if (request === frameRequest.current) setPendingFrameIndex(null);
     }
-  }, [preloadNeighbors, readFrame, retainNeighborCache, t]);
+  }, [preloadNeighbors, readFrame, resetOverlayTransform, retainNeighborCache, t]);
 
   const selectFrame = useCallback(async (index: number) => {
     if (!dataset || pendingFrameIndex !== null || index === currentFrameIndex) return;
@@ -255,7 +283,8 @@ export default function MapScreen() {
       const metadata = (await listGribDatasets()).find((item) => item.fileName === params.file);
       if (!metadata) throw new Error(t('map.notFound'));
       setDataset(metadata);
-      setFileInfo({ size: metadata.fileSize, modified: metadata.downloadedAt });
+      setSelectedPoint(null);
+      setFileInfo({ size: metadata.fileSize });
       frameCache.current.clear();
       setDisplayedFrame(null);
       setCurrentFrameIndex(0);
@@ -283,6 +312,15 @@ export default function MapScreen() {
     }).start();
   }, [currentFrameIndex, frameTransition]);
 
+  useEffect(() => {
+    layerTransition.setValue(0.7);
+    Animated.timing(layerTransition, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [layerTransition, showIsobares, showWind]);
+
   const handleMapPress = (evt: GestureResponderEvent) => {
     const px = evt.nativeEvent.locationX;
     const py = evt.nativeEvent.locationY;
@@ -292,7 +330,7 @@ export default function MapScreen() {
     const southMercator = Math.log(Math.tan(Math.PI / 4 + viewport[1] * Math.PI / 360));
     const touchedMercator = northMercator - (py / mapHeight) * (northMercator - southMercator);
     const latitude = (2 * Math.atan(Math.exp(touchedMercator)) - Math.PI / 2) * 180 / Math.PI;
-    inspectAt(longitude, latitude, px, py);
+    setSelectedPoint({ longitude, latitude });
   };
 
   const renderIsobares = () => {
@@ -365,7 +403,7 @@ export default function MapScreen() {
   };
 
   const renderPressureTint = () => {
-    if (!pressureData || activeParameter !== 'pressure') return null;
+    if (!pressureData) return null;
     const { grid, values, min, max } = pressureData;
     const range = Math.max(1, max - min);
     const step = Math.max(2, Math.ceil(Math.sqrt(grid.ni * grid.nj / 400)));
@@ -409,6 +447,9 @@ export default function MapScreen() {
 
     for (let j = 0; j < nj; j += step) {
       for (let i = 0; i < ni; i += step) {
+        const column = Math.floor(i / step);
+        const row = Math.floor(j / step);
+        if ((column + row * 2) % 5 >= 3) continue;
         const idx = j * ni + i;
         const u = windData.u[idx];
         const v = windData.v[idx];
@@ -420,34 +461,34 @@ export default function MapScreen() {
         const cx = projectLongitude(longitude);
         const latitude = point.latitude;
         const cy = projectLatitude(latitude);
-        const len = Math.min(speed * 1.7, 22);
+        const len = Math.min(speed * 1.9, 25);
         const dx = (u / speed) * len;
         const dy = (-v / speed) * len;
         const x2 = cx + dx;
         const y2 = cy + dy;
         const angle = Math.atan2(dy, dx);
-        const headLen = 4.5;
+        const headLen = 5;
         const headAngle = 0.42;
 
         arrows.push(
           <Line
             key={`w-${i}-${j}`}
             x1={cx} y1={cy} x2={x2} y2={y2}
-            stroke="#075FCB" strokeWidth={1.8} strokeLinecap="round"
+            stroke="#075FCB" strokeWidth={2} strokeLinecap="round"
           />,
           <Line
             key={`wh1-${i}-${j}`}
             x1={x2} y1={y2}
             x2={x2 - headLen * Math.cos(angle - headAngle)}
             y2={y2 - headLen * Math.sin(angle - headAngle)}
-            stroke="#075FCB" strokeWidth={1.8} strokeLinecap="round"
+            stroke="#075FCB" strokeWidth={2} strokeLinecap="round"
           />,
           <Line
             key={`wh2-${i}-${j}`}
             x1={x2} y1={y2}
             x2={x2 - headLen * Math.cos(angle + headAngle)}
             y2={y2 - headLen * Math.sin(angle + headAngle)}
-            stroke="#075FCB" strokeWidth={1.8} strokeLinecap="round"
+            stroke="#075FCB" strokeWidth={2} strokeLinecap="round"
           />
         );
       }
@@ -456,26 +497,10 @@ export default function MapScreen() {
     return arrows;
   };
 
-  const isOld = fileInfo
-    ? Date.now() - fileInfo.modified > 12 * 60 * 60 * 1000
-    : false;
-
   if (!fontsLoaded) return null;
 
   return (
     <View style={styles.container}>
-      <Pressable style={[styles.header, { top: insets.top + 10 }]} onPress={() => setSheet('parameter')} accessibilityRole="button" accessibilityLabel={t('map.parameterA11y')}>
-        <View style={styles.headerTop}><Text style={styles.zoneName}>{activeParameter === 'pressure' ? t('map.pressure') : t('map.wind')}⌄</Text></View>
-        <View style={styles.headerBottom}>
-          <View><Text style={styles.modelName}>{dataset?.model ?? 'GRIB'}</Text><Text style={[styles.status, isOld && styles.fileDateOld]}>{dataset?.runHour === '--' ? t('map.imported') : formatRunTime(dataset?.runDate, dataset?.runHour, language)}</Text></View>
-          {isOld && (
-            <Pressable onPress={() => router.push('/select')}>
-              <Text style={styles.refreshHint}>{t('map.refresh')}</Text>
-            </Pressable>
-          )}
-        </View>
-      </Pressable>
-
       <View style={styles.mapContainer}>
         {!displayedFrame && (
           <View style={styles.loadingContainer}>
@@ -500,13 +525,22 @@ export default function MapScreen() {
                 south={frameGrid.lat1}
                 north={frameGrid.lat2}
                 onAvailabilityChange={setOnlineMapAvailable}
-                onViewportChange={(bounds) => { setViewport(bounds); setTouched(null); }}
-                onInteractionChange={setMapMoving}
-                onMapPress={(longitude, latitude) => inspectAt(longitude, latitude, projectLongitude(longitude), projectLatitude(latitude))}
+                onViewportChange={commitViewport}
+                onViewportPreviewChange={previewViewport}
+                onMapPress={(longitude, latitude) => setSelectedPoint({ longitude, latitude })}
                 showUserLocation={locationPermission}
               />
             )}
-            <Animated.View style={[StyleSheet.absoluteFill, { opacity: frameTransition }, mapMoving && styles.weatherOverlayHidden]} pointerEvents={onlineMapAvailable ? 'none' : 'auto'}>
+            <Animated.View style={[StyleSheet.absoluteFill, {
+              opacity: Animated.multiply(frameTransition, layerTransition),
+              transformOrigin: 'left top',
+              transform: [
+                { translateX: overlayTranslateX },
+                { translateY: overlayTranslateY },
+                { scaleX: overlayScaleX },
+                { scaleY: overlayScaleY },
+              ],
+            }]} pointerEvents={onlineMapAvailable ? 'none' : 'auto'}>
               <Svg width={mapWidth} height={mapHeight} onPress={handleMapPress}>
                 <Rect width={mapWidth} height={mapHeight} fill="#FFFFFF" opacity={onlineMapAvailable ? 0.1 : 0.04} />
                 {renderPressureTint()}
@@ -563,9 +597,7 @@ export default function MapScreen() {
                 }]}>
                   <Text style={styles.timelineHour}>H+{currentDescriptor?.forecastHour ?? 0}</Text>
                   <Text style={styles.timelineDate}>
-                    {pendingFrameIndex !== null
-                      ? t('map.loadingForecast')
-                      : currentDescriptor ? formatValidTime(currentDescriptor.validTime, language) : '—'}
+                    {currentDescriptor ? formatValidTime(currentDescriptor.validTime, language) : '—'}
                   </Text>
                 </Animated.View>
                 <Pressable
@@ -597,6 +629,7 @@ export default function MapScreen() {
                     void selectFrame(currentFrameIndex + delta);
                   }}
                 >
+                  <View pointerEvents="none" style={styles.timelineRail} />
                   {dataset?.frames.map((descriptor, index) => (
                     <Pressable
                       key={`${descriptor.sourceFileId}-${descriptor.forecastHour}`}
@@ -612,7 +645,6 @@ export default function MapScreen() {
                       <View style={[
                         styles.timelineDot,
                         index === currentFrameIndex && styles.timelineDotActive,
-                        index === pendingFrameIndex && styles.timelineDotPending,
                       ]} />
                     </Pressable>
                   ))}
@@ -621,10 +653,10 @@ export default function MapScreen() {
             </View>
 
             {touched && (
-              <View style={[styles.infoPanel, { bottom: 214 + insets.bottom }]}>
-                <View style={styles.infoHeader}><Text style={styles.infoPlace} numberOfLines={1}>{dataset?.zone.label ?? t('map.weatherPoint')}</Text><Pressable accessibilityLabel={t('map.close')} hitSlop={10} onPress={() => setTouched(null)}><MaterialIcons name="close" size={22} color="#5F6368" /></Pressable></View>
+              <Animated.View style={[styles.infoPanel, { bottom: 214 + insets.bottom, opacity: frameTransition }]}>
+                <View style={styles.infoHeader}><Text style={styles.infoPlace} numberOfLines={1}>{dataset?.zone.label ?? t('map.weatherPoint')}</Text><Pressable accessibilityLabel={t('map.close')} hitSlop={10} onPress={() => setSelectedPoint(null)}><MaterialIcons name="close" size={22} color="#5F6368" /></Pressable></View>
                 <View style={styles.infoMetrics}><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.wind')}</Text><Text style={styles.infoWind}>{touched.windSpeed === undefined ? t('map.layerUnavailable') : `${touched.windSpeed.toFixed(0)} kt ${touched.windDir}`}</Text></View><View style={styles.infoMetric}><Text style={styles.infoLabel}>{t('map.pressure')}</Text><Text style={styles.infoPressure}>{touched.pressure === undefined ? t('map.layerUnavailable') : `${touched.pressure.toFixed(1)} hPa`}</Text></View></View>
-              </View>
+              </Animated.View>
             )}
           </View>
         )}
@@ -635,11 +667,8 @@ export default function MapScreen() {
         <Pressable style={styles.sheetBackdrop} onPress={() => setSheet(null)} />
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{sheet === 'parameter' ? t('map.parameter') : sheet === 'layers' ? t('map.display') : t('map.file')}</Text>
-          {sheet === 'parameter' ? <>
-            <SheetChoice icon="compress" title={t('map.pressure')} detail="hPa" selected={activeParameter === 'pressure'} onPress={() => { setActiveParameter('pressure'); setShowIsobares(true); setSheet(null); }} />
-            <SheetChoice icon="air" title={t('map.wind')} detail={t('map.knots')} selected={activeParameter === 'wind'} onPress={() => { setActiveParameter('wind'); setShowWind(true); setSheet(null); }} />
-          </> : sheet === 'layers' ? <>
+          <Text style={styles.sheetTitle}>{sheet === 'layers' ? t('map.display') : t('map.file')}</Text>
+          {sheet === 'layers' ? <>
             <SheetToggle icon="waves" title={t('map.showIsobars')} value={showIsobares && !!pressureData} disabled={!pressureData} onValueChange={setShowIsobares} />
             <SheetToggle icon="air" title={t('map.showWind')} value={showWind && !!windData} disabled={!windData} onValueChange={setShowWind} />
             <SheetToggle icon="public" title={t('map.detailedMap')} value={onlineMapAvailable} disabled onValueChange={() => undefined} />
@@ -657,12 +686,8 @@ export default function MapScreen() {
   );
 }
 
-function SheetChoice({ icon, title, detail, selected, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; detail: string; selected: boolean; onPress: () => void }) {
-  return <Pressable style={styles.sheetRow} onPress={onPress}><MaterialIcons name={icon} size={24} color="#1967D2" /><Text style={styles.sheetRowTitle}>{title}</Text><Text style={styles.sheetDetail}>{detail}</Text>{selected && <MaterialIcons name="check" size={24} color="#1967D2" />}</Pressable>;
-}
-
 function SheetToggle({ icon, title, value, disabled, onValueChange }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; value: boolean; disabled?: boolean; onValueChange: (value: boolean) => void }) {
-  return <View style={[styles.sheetRow, disabled && styles.sheetRowDisabled]}><MaterialIcons name={icon} size={24} color="#5F6368" /><Text style={styles.sheetRowTitle}>{title}</Text><Switch value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ true: '#AECBFA' }} thumbColor={value ? '#1967D2' : '#F1F3F4'} /></View>;
+  return <View style={[styles.sheetRow, disabled && styles.sheetRowDisabled]}><View style={styles.sheetIcon}><MaterialIcons name={icon} size={22} color={value ? '#1967D2' : '#5F6368'} /></View><Text style={styles.sheetRowTitle}>{title}</Text><Switch value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ false: '#CDD3DA', true: '#AECBFA' }} thumbColor={value ? '#1967D2' : '#F7F8FA'} /></View>;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -673,59 +698,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F2EA',
-  },
-  header: {
-    position: 'absolute',
-    zIndex: 10,
-    left: 14,
-    width: 224,
-    minHeight: 76,
-    paddingHorizontal: 15,
-    paddingVertical: 11,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    shadowColor: '#202124',
-    shadowOpacity: 0.09,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 7,
-  },
-  headerBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  zoneName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#142F49',
-  },
-  modelName: {
-    color: '#1967D2',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  fileDateOld: {
-    color: '#D06A2D',
-  },
-  status: {
-    fontFamily: 'SpaceMono_400Regular',
-    fontSize: 10,
-    color: '#5F6368',
-    marginTop: 2,
-  },
-  refreshHint: {
-    fontFamily: 'SpaceMono_400Regular',
-    fontSize: 10,
-    color: '#D06A2D',
   },
   mapContainer: {
     flex: 1,
@@ -772,29 +744,28 @@ const styles = StyleSheet.create({
   },
   layersButton: { position: 'absolute', right: 14, width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#202124', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   infoButton: { position: 'absolute', right: 14, width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#202124', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-  weatherOverlayHidden: { opacity: 0 },
   timeline: { position: 'absolute', zIndex: 12, left: 14, right: 14, minHeight: 112, borderRadius: 26, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12, backgroundColor: 'rgba(255,255,255,0.92)', elevation: 4, shadowColor: '#202124', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 6 } },
   timelineTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  timelineStep: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EDF3FE', alignItems: 'center', justifyContent: 'center' },
+  timelineStep: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#E8F0FE', alignItems: 'center', justifyContent: 'center' },
   timelineStepDisabled: { opacity: 0.35 },
   timelineCopy: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   timelineHour: { color: '#142F49', fontSize: 16, fontWeight: '800' },
   timelineDate: { color: '#5F6368', fontSize: 11, marginTop: 2 },
   timelineWarning: { color: '#B06000', fontSize: 10, fontWeight: '700' },
   timelineTrackArea: { marginTop: 9 },
-  timelineTrack: { height: 26, borderRadius: 13, backgroundColor: 'rgba(218,220,224,0.58)', justifyContent: 'center', position: 'relative' },
+  timelineTrack: { height: 30, borderRadius: 15, backgroundColor: 'rgba(229,233,238,0.72)', justifyContent: 'center', position: 'relative' },
+  timelineRail: { position: 'absolute', left: 5, right: 5, height: 4, borderRadius: 2, backgroundColor: '#B9C3CE' },
   timelineDotTarget: { position: 'absolute', marginLeft: -12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  timelineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#9AA8B5' },
-  timelineDotActive: { width: 15, height: 15, borderRadius: 8, backgroundColor: '#1967D2', borderWidth: 3, borderColor: '#DDEAFF' },
-  timelineDotPending: { backgroundColor: '#F9AB00' },
+  timelineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#7F8E9C', borderWidth: 2, borderColor: '#EEF1F5' },
+  timelineDotActive: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#1967D2', borderWidth: 4, borderColor: '#DDEAFF' },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(32,33,36,0.28)' },
-  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 34 },
+  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 34 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#C4C7C5', alignSelf: 'center', marginBottom: 16 },
-  sheetTitle: { color: '#202124', fontSize: 24, fontWeight: '700', marginBottom: 12 },
-  sheetRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 8, borderRadius: 16 },
+  sheetTitle: { color: '#172B3E', fontSize: 24, fontWeight: '700', marginBottom: 16 },
+  sheetRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 8, borderRadius: 18 },
+  sheetIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0F4FA' },
   sheetRowDisabled: { opacity: 0.52 },
   sheetRowTitle: { flex: 1, color: '#202124', fontSize: 16, fontWeight: '600' },
-  sheetDetail: { color: '#5F6368', fontSize: 14 },
   infoHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   infoPlace: { flex: 1, color: '#202124', fontSize: 16, fontWeight: '700', paddingRight: 12 },
   infoMetrics: { flexDirection: 'row', gap: 8, marginTop: 9 },

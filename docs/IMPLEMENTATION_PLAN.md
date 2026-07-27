@@ -41,7 +41,7 @@ Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des
 | Décodage dans l'écran Carte | Moyen | `app/map.tsx` concentre lecture, calcul, projection et UI |
 | Métadonnées trop étroites | Moyen | Pas de schéma versionné, échéances, paramètres, résolution ou modèle générique |
 | Performance non mesurée | Moyen | Budgets définis mais aucune mesure sur appareil |
-| Compatibilité GRIB ciblée | Accepté | Template 3.0, packing simple, sans bitmap, scanning mode 64 uniquement |
+| Compatibilité GRIB ciblée | Accepté | Grille 3.0, packing 5.0 ou 5.3 ciblé, sans bitmap, scanning mode 64 uniquement |
 
 ## Règles d'exécution
 
@@ -64,7 +64,8 @@ Le prochain travail doit donc renforcer la preuve et la donnée, pas ajouter des
 | QA-108 — recrutement public | Implémenté, publication requise | GitHub Pages déployée et première candidature reçue |
 | UX-109 — défauts appareil alpha | Implémenté, validation appareil requise | Safe area, GPS, synchronisation overlay, chargement carte et icône sur APK |
 | UX-110 — zone égale au viewport | Implémenté, validation appareil requise | Bbox visible et seuil de taille vérifiés sur APK |
-| PARSER-111 — décodage GRIB strict | Implémenté, validation croisée requise | Comparaisons XyGrib/PocketGrib et appareils |
+| PARSER-111 — décodage GRIB strict | Implémenté, validation appareil requise | Ouverture des fichiers XyGrib 5.3 sur Android |
+| PARSER-112 — import partiellement compatible | Implémenté, validation appareil requise | Fiche repliable et copie presse-papiers sur Android |
 | DATA-201 — manifeste temporel | Implémenté, validation appareil requise | Migration réelle et redémarrage hors ligne |
 | DL-301 — H+0 à H+24 | Implémenté, validation NOAA/appareil requise | Transaction native complète et interruption |
 | UI-303 — timeline manuelle | Implémenté, validation appareil requise | Gestes, accessibilité et mémoire |
@@ -371,6 +372,10 @@ boucle restent volontairement absentes avant mesure sur appareil.**
 **Acceptation :** lecture fluide d'une série 24 h, changement exact de valeurs et
 redémarrage hors ligne sans requête réseau.
 
+La sélection ponctuelle reste attachée à ses coordonnées et ses valeurs sont
+réinterpolées après chaque bascule atomique. Aucun marqueur orange ni libellé de
+chargement intermédiaire n'est affiché dans la timeline.
+
 ## Lot 4 — météo multisport minimale
 
 Objectif : compléter pression et vent avec les variables les plus utiles.
@@ -392,6 +397,7 @@ Objectif : compléter pression et vent avec les variables les plus utiles.
 - bottom sheet unique pour visibilité, transparence, légende et unités ;
 - application immédiate ;
 - palettes scientifiques lisibles et testées pour déficiences colorées.
+- densité du vent bornée et timeline graduée sans nouveau panneau permanent.
 
 **Acceptation :** chaque valeur affiche paramètre, unité, échéance et provenance sans
 ambiguïté.

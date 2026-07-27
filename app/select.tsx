@@ -105,7 +105,11 @@ export default function SelectScreen() {
         </Pressable>
         <View style={[styles.bottomSheet, { bottom: 88 + insets.bottom }]}>
           <View style={styles.zoneControls}>
-            <View style={styles.zoneCopy}><Text style={styles.zoneName} numberOfLines={1}>{zone.label}</Text><Text style={styles.coords}>{formatCenter(zone)}</Text></View>
+            <View style={styles.zoneCopy}>
+              <Text style={styles.zoneEyebrow}>{t('select.selectedArea')}</Text>
+              <Text style={styles.zoneName}>{formatCenter(zone)}</Text>
+              <View style={styles.forecastMeta}><Text style={styles.forecastMetaLabel}>{t('map.model')}</Text><Text style={styles.forecastMetaValue}>GFS · 0.25°</Text></View>
+            </View>
           </View>
           {!zoneIsDownloadable && !isOffline && <View style={styles.zoomBox}><Text style={styles.zoomText}>{t('select.zoomInDetail')}</Text></View>}
           {isOffline && <View style={styles.offlineBox}><Text style={styles.offlineTitle}>{t('select.offline')}</Text><Text style={styles.offlineText}>{t('select.offlineText')}</Text></View>}
@@ -124,7 +128,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F2EA' },
   mapStage: { flex: 1 },
   locationButton: { position: 'absolute', top: 52, right: 14, width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.96)', shadowColor: '#17324D', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
-  bottomSheet: { position: 'absolute', left: 12, right: 12, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 12, shadowColor: '#17324D', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
-  zoneControls: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 }, zoneCopy: { flex: 1 }, zoneName: { color: '#17324D', fontSize: 14, fontWeight: '700' }, coords: { color: '#667887', fontSize: 10, marginTop: 4, fontFamily: 'SpaceMono_400Regular' },
+  bottomSheet: { position: 'absolute', left: 12, right: 12, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 24, padding: 15, shadowColor: '#17324D', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
+  zoneControls: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 }, zoneCopy: { flex: 1 }, zoneEyebrow: { color: '#1967D2', fontSize: 10, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' }, zoneName: { color: '#17324D', fontSize: 18, fontWeight: '800', marginTop: 4, fontFamily: 'SpaceMono_700Bold' }, forecastMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }, forecastMetaLabel: { color: '#87919C', fontSize: 11 }, forecastMetaValue: { color: '#405465', fontSize: 12, fontWeight: '700' },
   download: { minHeight: 48, borderRadius: 13, backgroundColor: '#2474E5', flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center' }, downloadText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' }, disabled: { opacity: 0.55 }, zoomBox: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 9, backgroundColor: '#FFF3E0' }, zoomText: { color: '#8A4B08', fontSize: 11, lineHeight: 16 }, offlineBox: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 9, backgroundColor: '#E8F0FE' }, offlineTitle: { color: '#174EA6', fontSize: 13, fontWeight: '800' }, offlineText: { color: '#3C5F8A', fontSize: 11, lineHeight: 16, marginTop: 2 }, errorBox: { borderLeftWidth: 3, borderLeftColor: '#D33C32', borderRadius: 9, padding: 9, marginBottom: 9, backgroundColor: '#FDEAE7' }, errorText: { color: '#9D2720', fontSize: 12 },
 });

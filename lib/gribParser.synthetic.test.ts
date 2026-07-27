@@ -7,7 +7,9 @@ import {
   chooseAmbiguousContourConnection,
   computeIsobares,
   decodeValues,
+  formatGribTechnicalDetails,
   gridIndexToLatLon,
+  inspectGribCompatibility,
   isMeanSeaLevelPressureField,
   isTenMeterWindField,
   latLonToFractionalGridIndex,
@@ -26,6 +28,9 @@ type FieldOptions = {
   forecastTime?: number;
   referenceHour?: number;
   productTemplate?: number;
+  gridTemplate?: number;
+  dataTemplate?: number;
+  bitmapIndicator?: number;
   ni?: number;
   nj?: number;
   lat1?: number;
@@ -79,7 +84,7 @@ function field(options: FieldOptions = {}): Uint8Array {
 
   const section3 = section(3, 72);
   section3.writeUInt32BE(ni * nj, 6);
-  section3.writeUInt16BE(0, 12);
+  section3.writeUInt16BE(options.gridTemplate ?? 0, 12);
   section3.writeUInt32BE(ni, 30);
   section3.writeUInt32BE(nj, 34);
   const basicAngle = options.basicAngle ?? 0;
@@ -110,13 +115,13 @@ function field(options: FieldOptions = {}): Uint8Array {
 
   const section5 = section(5, 21);
   section5.writeUInt32BE(ni * nj, 5);
-  section5.writeUInt16BE(0, 9);
+  section5.writeUInt16BE(options.dataTemplate ?? 0, 9);
   section5.writeFloatBE(options.referenceValue ?? 1000, 11);
   section5.writeUInt16BE(unsignedMagnitude(options.binaryScale ?? 0, 16), 15);
   section5.writeUInt16BE(unsignedMagnitude(options.decimalScale ?? 0, 16), 17);
   section5[19] = bits;
   const section6 = section(6, 6);
-  section6[5] = 255;
+  section6[5] = options.bitmapIndicator ?? 255;
   const payload = pack(packed, bits);
   const section7 = section(7, 5 + payload.length);
   payload.copy(section7, 5);
@@ -205,6 +210,99 @@ describe('field identity and matching', () => {
       expect(result.windUField).toBeUndefined();
       expect(result.windVField).toBeUndefined();
     }
+  });
+});
+
+describe('message-by-message compatibility report', () => {
+  it('marks a fully supported file as supported', () => {
+    const report = inspectGribCompatibility(field());
+    expect(report.status).toBe('supported');
+    expect(report.availableLayers).toEqual(['pressure']);
+    expect(report.issues).toEqual([]);
+  });
+
+  it('keeps a supported layer and reports an unsupported message', () => {
+    const report = inspectGribCompatibility(concatenate(
+      field(),
+      field({ category: 1, parameter: 8 })
+    ));
+    expect(report.status).toBe('partially-supported');
+    expect(report.availableLayers).toEqual(['pressure']);
+    expect(report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        category: 'variable',
+        messageIndex: 1,
+        variable: 'Total precipitation',
+      }),
+    ]));
+  });
+
+  it('marks a file without an exploitable layer as unsupported', () => {
+    const report = inspectGribCompatibility(field({ category: 1, parameter: 8 }));
+    expect(report.status).toBe('unsupported');
+    expect(report.availableLayers).toEqual([]);
+  });
+
+  it.each([
+    [{ dataTemplate: 41 }, 'data-template', 41, 'packing template 5.41 (PNG)'],
+    [{ gridTemplate: 30 }, 'grid-template', 30, 'grid template 3.30 (Lambert conformal)'],
+    [{ scanningMode: 0 }, 'scanning-mode', 0, 'scanning mode 0'],
+    [{ productTemplate: 8 }, 'product-template', 8, 'product template 4.8'],
+  ] as const)('reports an unsupported encoding precisely', (options, category, code, message) => {
+    const report = inspectGribCompatibility(field(options));
+    expect(report.status).toBe('unsupported');
+    expect(report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category, code, messageIndex: 0, message: expect.stringContaining(message) }),
+    ]));
+  });
+
+  it('reports a supported variable on an unsupported level', () => {
+    const report = inspectGribCompatibility(field({
+      category: 2, parameter: 2, surfaceType: 103, surfaceValue: 100,
+    }));
+    expect(report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        category: 'level',
+        messageIndex: 0,
+        level: '100 m above ground',
+        message: 'Unsupported level: 100 m above ground',
+      }),
+    ]));
+  });
+
+  it('reports a bitmap without attempting to decode it', () => {
+    const report = inspectGribCompatibility(field({ bitmapIndicator: 0 }));
+    expect(report.status).toBe('unsupported');
+    expect(report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category: 'bitmap', code: 0, section: 6, messageIndex: 0 }),
+    ]));
+  });
+
+  it('classifies a truncated message as malformed data without exposing a stack trace', () => {
+    const truncated = field().subarray(0, -2);
+    const report = inspectGribCompatibility(truncated);
+    expect(report.status).toBe('unsupported');
+    expect(report.issues).toEqual([
+      expect.objectContaining({ category: 'malformed-data', messageIndex: 0 }),
+    ]);
+    expect(formatGribTechnicalDetails(report)).not.toContain('at inspectGribCompatibility');
+  });
+
+  it('generates self-contained local technical details', () => {
+    const report = inspectGribCompatibility(concatenate(
+      field(),
+      field({ dataTemplate: 41, category: 1, parameter: 8 })
+    ));
+    const details = formatGribTechnicalDetails(report);
+    expect(details).toContain('GRIB import status: partially-supported');
+    expect(details).toContain('#1: edition=2');
+    expect(details).toContain('grid=3.0');
+    expect(details).toContain('product=4.0');
+    expect(details).toContain('packing=5.41');
+    expect(details).toContain('scanning=64');
+    expect(details).toContain('bitmap=255');
+    expect(details).toContain('variable=Total precipitation');
+    expect(details).toContain('#1 [data-template]');
   });
 });
 

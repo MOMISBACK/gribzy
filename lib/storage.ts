@@ -1,7 +1,12 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
-import type { GribDataset } from './gribTypes';
-import { validateGribForApp } from './gribParser';
+import type { GribDataset, GribParameterId } from './gribTypes';
+import {
+  analyzeGribFramesForApp,
+  inspectGribCompatibility,
+  type GribCompatibilityReport,
+  type GribImportStatus,
+} from './gribParser';
 import { decodeDatasetMetadata } from './datasetMetadata';
 
 const DATA_DIRECTORY = 'gribzy-data';
@@ -24,19 +29,38 @@ export function saveDatasetMetadata(dataset: GribDataset): void {
   metadata.write(JSON.stringify(dataset));
 }
 
-export async function importGribFile(uri: string, originalName: string): Promise<GribDataset> {
+export interface GribImportResult {
+  status: GribImportStatus;
+  report: GribCompatibilityReport;
+  dataset?: GribDataset;
+}
+
+export async function importGribFile(uri: string, originalName: string): Promise<GribImportResult> {
   const source = new File(uri);
   if (source.size > 100 * 1024 * 1024) throw new Error('The file exceeds the 100 MB limit.');
   const bytes = await source.bytes();
-  const validated = validateGribForApp(bytes);
-  const { grid } = validated;
-  if (validated.pressureField.identity.forecastTimeUnit !== 1) {
+  const report = inspectGribCompatibility(bytes);
+  if (report.status === 'unsupported') return { status: 'unsupported', report };
+  const analyzedFrames = analyzeGribFramesForApp(bytes);
+  const usableFrames = analyzedFrames.filter(frame => frame.pressureField || (frame.windUField && frame.windVField));
+  const firstFrame = usableFrames[0];
+  const firstField = firstFrame?.pressureField ?? firstFrame?.windUField;
+  if (!firstFrame || !firstField) {
+    return {
+      status: 'unsupported',
+      report: { ...report, status: 'unsupported', availableLayers: [] },
+    };
+  }
+  const { grid } = firstField;
+  if (usableFrames.some(frame => frame.forecastTimeUnit !== 1)) {
     throw new Error('Only GRIB forecast times expressed in hours are supported.');
   }
   const now = new Date();
   const id = `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
   const cleanName = originalName.replace(/\.grib2?$|\.grb2?$/i, '').trim() || 'Imported GRIB';
-  const runDate = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const referenceDate = new Date(firstFrame.referenceTime);
+  const runDate = firstFrame.referenceTime.slice(0, 10).replace(/-/g, '');
+  const runHour = String(referenceDate.getUTCHours()).padStart(2, '0');
   const fileName = `${slugifyName(cleanName)}-${id}.grib2`;
   const destination = getDatasetFile(fileName);
   const dataset: GribDataset = {
@@ -44,16 +68,15 @@ export async function importGribFile(uri: string, originalName: string): Promise
     id,
     fileName,
     sourceId: id,
-    frames: [{
-      forecastHour: validated.pressureField.identity.forecastTime,
+    frames: usableFrames.map(frame => ({
+      forecastHour: frame.forecastTime,
       validTime: new Date(
-        Date.parse(validated.pressureField.identity.referenceTime) +
-        validated.pressureField.identity.forecastTime * 60 * 60 * 1000
+        Date.parse(frame.referenceTime) + frame.forecastTime * 60 * 60 * 1000
       ).toISOString(),
       sourceId: id,
       sourceFileId: fileName,
-      messageIndexes: validated.fields.map((_, index) => index),
-    }],
+      messageIndexes: frame.messageIndexes,
+    })),
     zone: {
       leftlon: Math.min(grid.lon1, grid.lon2),
       rightlon: Math.max(grid.lon1, grid.lon2),
@@ -63,10 +86,13 @@ export async function importGribFile(uri: string, originalName: string): Promise
     },
     model: 'Imported',
     resolution: 'Unknown',
-    parameters: validated.windU && validated.windV ? ['pressure', 'wind'] : ['pressure'],
-    forecastHours: [validated.pressureField.identity.forecastTime],
+    parameters: [
+      ...(usableFrames.some(frame => frame.pressureField) ? ['pressure'] : []),
+      ...(usableFrames.some(frame => frame.windUField && frame.windVField) ? ['wind'] : []),
+    ] as GribParameterId[],
+    forecastHours: usableFrames.map(frame => frame.forecastTime),
     runDate,
-    runHour: '--',
+    runHour,
     downloadedAt: now.getTime(),
     fileSize: bytes.byteLength,
   };
@@ -74,7 +100,7 @@ export async function importGribFile(uri: string, originalName: string): Promise
     destination.create({ overwrite: false, intermediates: true });
     destination.write(bytes);
     saveDatasetMetadata(dataset);
-    return dataset;
+    return { status: report.status, report, dataset };
   } catch (error) {
     if (destination.exists) destination.delete();
     throw error;

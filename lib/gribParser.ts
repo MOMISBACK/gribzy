@@ -261,11 +261,23 @@ export function readMessageParameter(bytes: Uint8Array, messageOffset: number): 
 }
 
 export interface GribDataRepresentation {
+  template: 0 | 3;
   numberOfValues: number;
   referenceValue: number;
   binaryScale: number;
   decimalScale: number;
   bitsPerValue: number;
+  groupSplittingMethod?: number;
+  missingValueManagement?: number;
+  numberOfGroups?: number;
+  groupWidthReference?: number;
+  groupWidthBits?: number;
+  groupLengthReference?: number;
+  groupLengthIncrement?: number;
+  lastGroupLength?: number;
+  groupLengthBits?: number;
+  spatialDifferencingOrder?: number;
+  spatialDescriptorOctets?: number;
 }
 
 export function readDataRepresentation(bytes: Uint8Array, messageOffset: number): GribDataRepresentation {
@@ -274,15 +286,162 @@ export function readDataRepresentation(bytes: Uint8Array, messageOffset: number)
   if (section.size < 21) fail('INVALID_STRUCTURE', 'Incomplete GRIB section 5');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const template = view.getUint16(section.offset + 9, false);
-  if (template !== 0) fail('UNSUPPORTED_PACKING', `Unsupported GRIB packing (${template})`);
+  if (template !== 0 && template !== 3) fail('UNSUPPORTED_PACKING', `Unsupported GRIB packing (${template})`);
   const referenceValue = assertFinite(view.getFloat32(section.offset + 11, false), 'reference value');
-  return {
+  const common = {
+    template,
     numberOfValues: view.getUint32(section.offset + 5, false),
     referenceValue,
     binaryScale: signedMagnitude16(view, section.offset + 15),
     decimalScale: signedMagnitude16(view, section.offset + 17),
     bitsPerValue: view.getUint8(section.offset + 19),
   };
+  if (template === 0) return { ...common, template: 0 };
+  if (section.size < 49) fail('INVALID_STRUCTURE', 'Incomplete GRIB complex packing template');
+  const groupSplittingMethod = view.getUint8(section.offset + 21);
+  const missingValueManagement = view.getUint8(section.offset + 22);
+  const spatialDifferencingOrder = view.getUint8(section.offset + 47);
+  const spatialDescriptorOctets = view.getUint8(section.offset + 48);
+  if (groupSplittingMethod !== 1) {
+    fail('UNSUPPORTED_PACKING', `Unsupported GRIB group splitting method (${groupSplittingMethod})`);
+  }
+  if (missingValueManagement !== 0) {
+    fail('UNSUPPORTED_PACKING', `Unsupported GRIB missing value management (${missingValueManagement})`);
+  }
+  if (spatialDifferencingOrder !== 1 && spatialDifferencingOrder !== 2) {
+    fail('UNSUPPORTED_PACKING', `Unsupported GRIB spatial differencing order (${spatialDifferencingOrder})`);
+  }
+  if (spatialDescriptorOctets < 1 || spatialDescriptorOctets > 4) {
+    fail('UNSUPPORTED_PACKING', `Unsupported GRIB spatial descriptor width (${spatialDescriptorOctets})`);
+  }
+  return {
+    ...common,
+    template: 3,
+    groupSplittingMethod,
+    missingValueManagement,
+    numberOfGroups: view.getUint32(section.offset + 31, false),
+    groupWidthReference: view.getUint8(section.offset + 35),
+    groupWidthBits: view.getUint8(section.offset + 36),
+    groupLengthReference: view.getUint32(section.offset + 37, false),
+    groupLengthIncrement: view.getUint8(section.offset + 41),
+    lastGroupLength: view.getUint32(section.offset + 42, false),
+    groupLengthBits: view.getUint8(section.offset + 46),
+    spatialDifferencingOrder,
+    spatialDescriptorOctets,
+  };
+}
+
+class BitReader {
+  private bitOffset = 0;
+
+  constructor(
+    private readonly view: DataView,
+    private readonly byteOffset: number,
+    private readonly byteLength: number
+  ) {}
+
+  read(bits: number): number {
+    if (bits < 0 || bits > 31) fail('UNSUPPORTED_BIT_DEPTH', `Unsupported GRIB bit depth (${bits} bits)`);
+    if (this.bitOffset + bits > this.byteLength * 8) fail('INVALID_STRUCTURE', 'GRIB packed data is truncated');
+    let value = 0;
+    for (let bit = 0; bit < bits; bit++) {
+      const absoluteBit = this.bitOffset++;
+      const byte = this.view.getUint8(this.byteOffset + Math.floor(absoluteBit / 8));
+      value = value * 2 + ((byte >> (7 - absoluteBit % 8)) & 1);
+    }
+    return value;
+  }
+
+  alignToByte() {
+    this.bitOffset = Math.ceil(this.bitOffset / 8) * 8;
+  }
+
+  get consumedBits() {
+    return this.bitOffset;
+  }
+}
+
+function readSignedMagnitudeBytes(view: DataView, offset: number, octets: number): number {
+  let encoded = 0;
+  for (let index = 0; index < octets; index++) encoded = encoded * 256 + view.getUint8(offset + index);
+  const signThreshold = 2 ** (octets * 8 - 1);
+  return encoded >= signThreshold ? -(encoded - signThreshold) : encoded;
+}
+
+async function decodeComplexSpatialValues(
+  view: DataView,
+  dataOffset: number,
+  dataLength: number,
+  representation: GribDataRepresentation
+): Promise<Float32Array> {
+  const {
+    numberOfValues, referenceValue, binaryScale, decimalScale, bitsPerValue,
+    numberOfGroups = 0, groupWidthReference = 0, groupWidthBits = 0,
+    groupLengthReference = 0, groupLengthIncrement = 0, lastGroupLength = 0,
+    groupLengthBits = 0, spatialDifferencingOrder = 0, spatialDescriptorOctets = 0,
+  } = representation;
+  if (numberOfValues < spatialDifferencingOrder) {
+    fail('INVALID_STRUCTURE', 'GRIB spatial differencing order exceeds the value count');
+  }
+  if (numberOfGroups < 1 || numberOfGroups > numberOfValues) {
+    fail('INVALID_STRUCTURE', 'Invalid GRIB complex packing group count');
+  }
+  const descriptorCount = spatialDifferencingOrder + 1;
+  const descriptorBytes = descriptorCount * spatialDescriptorOctets;
+  if (descriptorBytes > dataLength) fail('INVALID_STRUCTURE', 'Incomplete GRIB spatial differencing descriptors');
+  const descriptors = Array.from({ length: descriptorCount }, (_, index) =>
+    readSignedMagnitudeBytes(view, dataOffset + index * spatialDescriptorOctets, spatialDescriptorOctets)
+  );
+  const reader = new BitReader(view, dataOffset + descriptorBytes, dataLength - descriptorBytes);
+  const groupReferences = Array.from({ length: numberOfGroups }, () => reader.read(bitsPerValue));
+  reader.alignToByte();
+  const groupWidths = Array.from({ length: numberOfGroups }, () =>
+    groupWidthReference + reader.read(groupWidthBits)
+  );
+  reader.alignToByte();
+  const groupLengths = Array.from({ length: numberOfGroups }, (_, index) =>
+    index === numberOfGroups - 1
+      ? lastGroupLength
+      : groupLengthReference + reader.read(groupLengthBits) * groupLengthIncrement
+  );
+  if (numberOfGroups > 0 && groupLengthBits > 0) reader.read(groupLengthBits);
+  reader.alignToByte();
+  const packed = new Float64Array(numberOfValues);
+  let valueIndex = 0;
+  for (let group = 0; group < numberOfGroups; group++) {
+    const width = groupWidths[group];
+    for (let index = 0; index < groupLengths[group]; index++) {
+      if (valueIndex >= numberOfValues) fail('INVALID_STRUCTURE', 'GRIB complex groups exceed the declared value count');
+      packed[valueIndex++] = groupReferences[group] + reader.read(width);
+    }
+    if (group % 128 === 127) await new Promise(resolve => setTimeout(resolve, 0));
+  }
+  if (valueIndex !== numberOfValues) fail('INVALID_STRUCTURE', 'GRIB complex groups do not match the declared value count');
+  if (reader.consumedBits > (dataLength - descriptorBytes) * 8) fail('INVALID_STRUCTURE', 'GRIB complex data exceeds section 7');
+
+  const minimumDifference = descriptors[spatialDifferencingOrder];
+  const integers = new Float64Array(numberOfValues);
+  if (spatialDifferencingOrder === 1) {
+    integers[0] = descriptors[0];
+    for (let index = 1; index < numberOfValues; index++) {
+      integers[index] = integers[index - 1] + packed[index] + minimumDifference;
+    }
+  } else {
+    integers[0] = descriptors[0];
+    integers[1] = descriptors[1];
+    for (let index = 2; index < numberOfValues; index++) {
+      integers[index] = 2 * integers[index - 1] - integers[index - 2] + packed[index] + minimumDifference;
+    }
+  }
+
+  const binaryMultiplier = assertFinite(2 ** binaryScale, 'binary scale');
+  const decimalDivisor = assertFinite(10 ** decimalScale, 'decimal scale');
+  if (decimalDivisor === 0) fail('NON_FINITE_VALUE', 'Invalid GRIB decimal scale');
+  const values = new Float32Array(numberOfValues);
+  for (let index = 0; index < numberOfValues; index++) {
+    values[index] = assertFinite((referenceValue + integers[index] * binaryMultiplier) / decimalDivisor, `decoded value ${index}`);
+  }
+  return values;
 }
 
 export async function decodeValues(
@@ -294,6 +453,9 @@ export async function decodeValues(
   const section = message.sections.get(7)!;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const { referenceValue, binaryScale, decimalScale, bitsPerValue, numberOfValues } = representation;
+  if (representation.template === 3) {
+    return decodeComplexSpatialValues(view, section.offset + 5, section.size - 5, representation);
+  }
   if (bitsPerValue > 31) fail('UNSUPPORTED_BIT_DEPTH', `Unsupported GRIB bit depth (${bitsPerValue} bits)`);
   const byteCount = Math.ceil(numberOfValues * bitsPerValue / 8);
   if (section.size !== 5 + byteCount) fail('INVALID_STRUCTURE', 'Inconsistent GRIB section 7 length');
@@ -515,6 +677,344 @@ export interface GribLayerDiagnostic {
   message: string;
 }
 
+export type GribCompatibilityIssueCategory =
+  | 'edition'
+  | 'grid-template'
+  | 'product-template'
+  | 'data-template'
+  | 'scanning-mode'
+  | 'bitmap'
+  | 'level'
+  | 'variable'
+  | 'malformed-data';
+
+export interface GribCompatibilityIssue {
+  category: GribCompatibilityIssueCategory;
+  code?: number | string;
+  message: string;
+  messageIndex?: number;
+  section?: number;
+  variable?: string;
+  level?: string;
+}
+
+export type GribImportStatus = 'supported' | 'partially-supported' | 'unsupported';
+
+export interface GribMessageTechnicalDetails {
+  messageIndex: number;
+  edition: number;
+  centre?: number;
+  gridTemplate?: number;
+  productTemplate?: number;
+  dataTemplate?: number;
+  scanningMode?: number;
+  bitmapIndicator?: number;
+  variable?: string;
+  level?: string;
+}
+
+export interface GribCompatibilityReport {
+  status: GribImportStatus;
+  availableLayers: Array<'pressure' | 'wind'>;
+  issues: GribCompatibilityIssue[];
+  messages: GribMessageTechnicalDetails[];
+}
+
+function parameterLabel(discipline: number, category: number, parameter: number): string {
+  if (discipline === 0 && category === 3 && parameter === 1) return 'Mean sea level pressure';
+  if (discipline === 0 && category === 2 && parameter === 2) return 'U wind component';
+  if (discipline === 0 && category === 2 && parameter === 3) return 'V wind component';
+  if (discipline === 0 && category === 1 && parameter === 8) return 'Total precipitation';
+  if (discipline === 10 && category === 0 && parameter === 3) return 'Significant wave height';
+  return `Discipline ${discipline}, category ${category}, parameter ${parameter}`;
+}
+
+function surfaceLabel(type: number, scaleFactor: number, scaledValue: number): string {
+  const value = scaledValue * 10 ** -scaleFactor;
+  if (type === 101) return 'mean sea level';
+  if (type === 103) return `${value} m above ground`;
+  if (type === 100) return `${value} Pa isobaric surface`;
+  return `surface type ${type}, value ${value}`;
+}
+
+function compatibilityIssue(
+  issue: Omit<GribCompatibilityIssue, 'messageIndex'>,
+  messageIndex: number
+): GribCompatibilityIssue {
+  return { ...issue, messageIndex };
+}
+
+function compatibilityCategoryForError(error: GribValidationError): {
+  category: GribCompatibilityIssueCategory;
+  section?: number;
+} {
+  if (error.code === 'UNSUPPORTED_PRODUCT_TEMPLATE') return { category: 'product-template', section: 4 };
+  if (error.code === 'UNSUPPORTED_PACKING' || error.code === 'UNSUPPORTED_BIT_DEPTH') {
+    return { category: 'data-template', section: 5 };
+  }
+  if (error.code === 'UNSUPPORTED_BITMAP') return { category: 'bitmap', section: 6 };
+  if (error.code === 'UNSUPPORTED_SCANNING_MODE') return { category: 'scanning-mode', section: 3 };
+  if (
+    error.code === 'UNSUPPORTED_GRID_TEMPLATE' ||
+    error.code === 'UNSUPPORTED_QUASI_REGULAR_GRID' ||
+    error.code === 'UNSUPPORTED_ANTIMERIDIAN_GRID'
+  ) return { category: 'grid-template', section: 3 };
+  if (error.code === 'UNSUPPORTED_VERTICAL_LEVEL') return { category: 'level', section: 4 };
+  return { category: 'malformed-data' };
+}
+
+function scanGribCandidateOffsets(bytes: Uint8Array): number[] {
+  const offsets: number[] = [];
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = 0;
+  while (offset + 8 <= bytes.length) {
+    if (
+      bytes[offset] === 0x47 && bytes[offset + 1] === 0x52 &&
+      bytes[offset + 2] === 0x49 && bytes[offset + 3] === 0x42
+    ) {
+      offsets.push(offset);
+      const edition = bytes[offset + 7];
+      if (edition === 2 && offset + 16 <= bytes.length && view.getUint32(offset + 8, false) === 0) {
+        const size = view.getUint32(offset + 12, false);
+        if (
+          size >= 20 && offset + size <= bytes.length &&
+          bytes[offset + size - 4] === 0x37 && bytes[offset + size - 3] === 0x37 &&
+          bytes[offset + size - 2] === 0x37 && bytes[offset + size - 1] === 0x37
+        ) {
+          offset += size;
+          continue;
+        }
+      } else if (edition === 1) {
+        const size = bytes[offset + 4] * 65536 + bytes[offset + 5] * 256 + bytes[offset + 6];
+        if (size >= 12 && offset + size <= bytes.length) {
+          offset += size;
+          continue;
+        }
+      }
+      offset += 4;
+      continue;
+    }
+    offset++;
+  }
+  return offsets;
+}
+
+/**
+ * Inventories every GRIB marker independently. This function never attempts to
+ * reinterpret unsupported encodings: a message is either accepted by the strict
+ * parser or described as an explicit compatibility issue.
+ */
+export function inspectGribCompatibility(bytes: Uint8Array): GribCompatibilityReport {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const offsets = scanGribCandidateOffsets(bytes);
+  const issues: GribCompatibilityIssue[] = [];
+  const messages: GribMessageTechnicalDetails[] = [];
+  const usableFields: ParsedGribField[] = [];
+
+  if (offsets.length === 0) {
+    issues.push({ category: 'malformed-data', message: 'No GRIB message marker found' });
+  }
+
+  offsets.forEach((offset, messageIndex) => {
+    const edition = view.getUint8(offset + 7);
+    const details: GribMessageTechnicalDetails = { messageIndex, edition };
+    messages.push(details);
+    if (edition !== 2) {
+      issues.push(compatibilityIssue({
+        category: 'edition', code: edition, message: `Unsupported GRIB edition ${edition}`,
+      }, messageIndex));
+      return;
+    }
+
+    let structure: ParsedMessageStructure;
+    try {
+      structure = parseMessageStructure(bytes, offset);
+    } catch (error) {
+      issues.push(compatibilityIssue({
+        category: 'malformed-data',
+        code: error instanceof GribValidationError ? error.code : undefined,
+        message: error instanceof Error ? error.message : 'Malformed GRIB message',
+      }, messageIndex));
+      return;
+    }
+
+    const section1 = structure.sections.get(1)!;
+    const section3 = structure.sections.get(3)!;
+    const section4 = structure.sections.get(4)!;
+    const section5 = structure.sections.get(5)!;
+    const section6 = structure.sections.get(6)!;
+    details.centre = view.getUint16(section1.offset + 5, false);
+    details.gridTemplate = view.getUint16(section3.offset + 12, false);
+    details.productTemplate = view.getUint16(section4.offset + 7, false);
+    details.dataTemplate = view.getUint16(section5.offset + 9, false);
+    details.bitmapIndicator = view.getUint8(section6.offset + 5);
+    if (section4.size < 34) {
+      issues.push(compatibilityIssue({
+        category: 'malformed-data', code: 'INCOMPLETE_PRODUCT_DEFINITION', section: 4,
+        message: 'Incomplete GRIB product definition',
+      }, messageIndex));
+      return;
+    }
+    if (details.gridTemplate === 0 && section3.size >= 72) {
+      details.scanningMode = view.getUint8(section3.offset + 71);
+    }
+    const discipline = structure.discipline;
+    const category = view.getUint8(section4.offset + 9);
+    const parameter = view.getUint8(section4.offset + 10);
+    details.variable = parameterLabel(discipline, category, parameter);
+    if (section4.size >= 34) {
+      details.level = surfaceLabel(
+        view.getUint8(section4.offset + 22),
+        signedMagnitude8(view.getUint8(section4.offset + 23)),
+        signedMagnitude32(view, section4.offset + 24)
+      );
+    }
+
+    let incompatible = false;
+    if (details.gridTemplate !== 0) {
+      incompatible = true;
+      const suffix = details.gridTemplate === 30 ? ' (Lambert conformal)' : '';
+      issues.push(compatibilityIssue({
+        category: 'grid-template', code: details.gridTemplate, section: 3,
+        message: `Unsupported grid template 3.${details.gridTemplate}${suffix}`,
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    }
+    if (details.productTemplate !== 0) {
+      incompatible = true;
+      issues.push(compatibilityIssue({
+        category: 'product-template', code: details.productTemplate, section: 4,
+        message: `Unsupported product template 4.${details.productTemplate}`,
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    }
+    if (details.dataTemplate !== 0 && details.dataTemplate !== 3) {
+      incompatible = true;
+      const suffix = details.dataTemplate === 41 ? ' (PNG)' :
+        details.dataTemplate === 40 || details.dataTemplate === 40000 ? ' (JPEG2000)' : '';
+      issues.push(compatibilityIssue({
+        category: 'data-template', code: details.dataTemplate, section: 5,
+        message: `Unsupported GRIB data packing template 5.${details.dataTemplate}${suffix}`,
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    }
+    if (details.scanningMode !== undefined && details.scanningMode !== 64) {
+      incompatible = true;
+      issues.push(compatibilityIssue({
+        category: 'scanning-mode', code: details.scanningMode, section: 3,
+        message: `Unsupported scanning mode ${details.scanningMode}`,
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    }
+    if (details.bitmapIndicator !== 255) {
+      incompatible = true;
+      issues.push(compatibilityIssue({
+        category: 'bitmap', code: details.bitmapIndicator, section: 6,
+        message: `Unsupported bitmap indicator ${details.bitmapIndicator}`,
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    }
+
+    const isPressureVariable = discipline === 0 && category === 3 && parameter === 1;
+    const isWindVariable = discipline === 0 && category === 2 && (parameter === 2 || parameter === 3);
+    const surfaceType = view.getUint8(section4.offset + 22);
+    const surfaceScale = signedMagnitude8(view.getUint8(section4.offset + 23));
+    const surfaceValue = signedMagnitude32(view, section4.offset + 24);
+    const supportedLevel = (isPressureVariable && surfaceType === 101) ||
+      (isWindVariable && surfaceType === 103 && surfaceScale === 0 && surfaceValue === 10);
+    if ((isPressureVariable || isWindVariable) && !supportedLevel) {
+      incompatible = true;
+      issues.push(compatibilityIssue({
+        category: 'level', code: surfaceType,
+        message: `Unsupported level: ${details.level}`,
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    } else if (!isPressureVariable && !isWindVariable) {
+      incompatible = true;
+      issues.push(compatibilityIssue({
+        category: 'variable', code: `${discipline}/${category}/${parameter}`,
+        message: `Unsupported parameter: ${details.variable}`,
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    }
+
+    if (incompatible) return;
+    try {
+      const identity = readFieldIdentity(bytes, offset);
+      const grid = readGridDefinition(bytes, offset);
+      const representation = readDataRepresentation(bytes, offset);
+      if (representation.numberOfValues !== grid.ni * grid.nj) {
+        fail('INVALID_GRID_GEOMETRY', 'Inconsistent GRIB data point count');
+      }
+      usableFields.push({ message: structure, identity, grid, representation });
+    } catch (error) {
+      const classified = error instanceof GribValidationError
+        ? compatibilityCategoryForError(error)
+        : { category: 'malformed-data' as const };
+      issues.push(compatibilityIssue({
+        category: classified.category,
+        code: error instanceof GribValidationError ? error.code : undefined,
+        section: classified.section,
+        message: error instanceof Error ? error.message : 'Malformed GRIB message',
+        variable: details.variable, level: details.level,
+      }, messageIndex));
+    }
+  });
+
+  const pressure = usableFields.some(field => isMeanSeaLevelPressureField(field.identity));
+  const windUFields = usableFields.filter(field =>
+    isTenMeterWindField(field.identity) && field.identity.parameter === 2
+  );
+  const windVFields = usableFields.filter(field =>
+    isTenMeterWindField(field.identity) && field.identity.parameter === 3
+  );
+  const hasWindPair = windUFields.some(u =>
+    windVFields.some(v => buildFieldMatchKey(u) === buildFieldMatchKey(v))
+  );
+  const availableLayers: GribCompatibilityReport['availableLayers'] = [
+    ...(pressure ? ['pressure' as const] : []),
+    ...(hasWindPair ? ['wind' as const] : []),
+  ];
+  const status: GribImportStatus = availableLayers.length === 0
+    ? 'unsupported'
+    : issues.length > 0
+      ? 'partially-supported'
+      : 'supported';
+  return { status, availableLayers, issues, messages };
+}
+
+export function formatGribTechnicalDetails(report: GribCompatibilityReport): string {
+  const lines = [
+    `GRIB import status: ${report.status}`,
+    `Available layers: ${report.availableLayers.length ? report.availableLayers.join(', ') : 'none'}`,
+    '',
+    'Messages:',
+  ];
+  for (const message of report.messages) {
+    lines.push(
+      `#${message.messageIndex}: edition=${message.edition}` +
+      ` centre=${message.centre ?? 'unknown'}` +
+      ` grid=${message.gridTemplate === undefined ? 'unknown' : `3.${message.gridTemplate}`}` +
+      ` product=${message.productTemplate === undefined ? 'unknown' : `4.${message.productTemplate}`}` +
+      ` packing=${message.dataTemplate === undefined ? 'unknown' : `5.${message.dataTemplate}`}` +
+      ` scanning=${message.scanningMode ?? 'unknown'}` +
+      ` bitmap=${message.bitmapIndicator ?? 'unknown'}` +
+      ` variable=${message.variable ?? 'unknown'}` +
+      ` level=${message.level ?? 'unknown'}`
+    );
+  }
+  if (report.issues.length) {
+    lines.push('', 'Ignored messages:');
+    report.issues.forEach(issue => {
+      lines.push(
+        `#${issue.messageIndex ?? 'unknown'} [${issue.category}] ${issue.message}` +
+        `${issue.section === undefined ? '' : `; section=${issue.section}`}`
+      );
+    });
+  }
+  return lines.join('\n');
+}
+
 export interface AnalyzedGrib {
   messages: GribMessage[];
   fields: ParsedGribField[];
@@ -524,11 +1024,32 @@ export interface AnalyzedGrib {
   diagnostics: GribLayerDiagnostic[];
 }
 
-export function analyzeGribForApp(bytes: Uint8Array): AnalyzedGrib {
-  const messages = findGribMessages(bytes);
+export function analyzeGribForApp(bytes: Uint8Array, messageIndexes?: number[]): AnalyzedGrib {
+  const allMessages = findGribMessages(bytes);
+  const messages = messageIndexes
+    ? messageIndexes.map(index => {
+        const message = allMessages[index];
+        if (!message) fail('INVALID_STRUCTURE', `GRIB message index ${index} is unavailable`);
+        return message;
+      })
+    : allMessages;
   if (messages.length === 0) fail('INVALID_STRUCTURE', 'No valid GRIB2 message');
-  const fields = messages.map(message => {
-    const identity = readFieldIdentity(bytes, message.offset);
+  const diagnostics: GribLayerDiagnostic[] = [];
+  const fields: ParsedGribField[] = [];
+  for (const message of messages) {
+    let identity: GribFieldIdentity;
+    try {
+      identity = readFieldIdentity(bytes, message.offset);
+    } catch (error) {
+      if (error instanceof GribValidationError && error.code === 'UNSUPPORTED_PRODUCT_TEMPLATE') {
+        diagnostics.push({
+          layer: 'frame', severity: 'info', code: 'UNSUPPORTED_FIELD',
+          message: error.message,
+        });
+        continue;
+      }
+      throw error;
+    }
     const grid = readGridDefinition(bytes, message.offset);
     const representation = readDataRepresentation(bytes, message.offset);
     if (readBitmapIndicator(bytes, message.offset) !== 255) {
@@ -537,14 +1058,14 @@ export function analyzeGribForApp(bytes: Uint8Array): AnalyzedGrib {
     if (representation.numberOfValues !== grid.ni * grid.nj) {
       fail('INVALID_GRID_GEOMETRY', 'Inconsistent GRIB data point count');
     }
-    const section7 = structureAt(bytes, message.offset).sections.get(7)!;
-    if (section7.size !== 5 + Math.ceil(representation.numberOfValues * representation.bitsPerValue / 8)) {
-      fail('INVALID_STRUCTURE', 'Inconsistent GRIB packed data length');
+    if (representation.template === 0) {
+      const section7 = structureAt(bytes, message.offset).sections.get(7)!;
+      if (section7.size !== 5 + Math.ceil(representation.numberOfValues * representation.bitsPerValue / 8)) {
+        fail('INVALID_STRUCTURE', 'Inconsistent GRIB packed data length');
+      }
     }
-    return { message, identity, grid, representation };
-  });
-
-  const diagnostics: GribLayerDiagnostic[] = [];
+    fields.push({ message, identity, grid, representation });
+  }
   const pressureField = fields.find(field => isMeanSeaLevelPressureField(field.identity));
   if (!pressureField) diagnostics.push({
     layer: 'pressure', severity: 'warning', code: 'PRESSURE_MISSING',
@@ -594,6 +1115,60 @@ export function analyzeGribForApp(bytes: Uint8Array): AnalyzedGrib {
     });
   }
   return { messages, fields, pressureField, windUField, windVField, diagnostics };
+}
+
+export interface AnalyzedForecastGroup extends AnalyzedGrib {
+  referenceTime: string;
+  forecastTime: number;
+  forecastTimeUnit: number;
+  messageIndexes: number[];
+}
+
+export function analyzeGribFramesForApp(bytes: Uint8Array): AnalyzedForecastGroup[] {
+  const allMessages = findGribMessages(bytes);
+  const relevant: ParsedGribField[] = [];
+  for (const message of allMessages) {
+    try {
+      const identity = readFieldIdentity(bytes, message.offset);
+      if (!isMeanSeaLevelPressureField(identity) && !isTenMeterWindField(identity)) continue;
+      const grid = readGridDefinition(bytes, message.offset);
+      const representation = readDataRepresentation(bytes, message.offset);
+      if (readBitmapIndicator(bytes, message.offset) !== 255) continue;
+      if (representation.numberOfValues !== grid.ni * grid.nj) continue;
+      relevant.push({ message, identity, grid, representation });
+    } catch (error) {
+      if (error instanceof GribValidationError) continue;
+      throw error;
+    }
+  }
+  const groups = new Map<string, ParsedGribField[]>();
+  for (const field of relevant) {
+    const { referenceTime, forecastTime, forecastTimeUnit } = field.identity;
+    const key = `${referenceTime}/${forecastTimeUnit}/${forecastTime}`;
+    const group = groups.get(key);
+    if (group) group.push(field);
+    else groups.set(key, [field]);
+  }
+
+  return Array.from(groups.values()).map(fields => {
+    const first = fields[0];
+    const messageIndexes = fields.map(field => {
+      const index = allMessages.findIndex(message => message.offset === field.message.offset);
+      if (index < 0) fail('INVALID_STRUCTURE', 'GRIB field message cannot be indexed');
+      return index;
+    });
+    const frame = analyzeGribForApp(bytes, messageIndexes);
+    return {
+      ...frame,
+      referenceTime: first.identity.referenceTime,
+      forecastTime: first.identity.forecastTime,
+      forecastTimeUnit: first.identity.forecastTimeUnit,
+      messageIndexes,
+    };
+  }).sort((left, right) =>
+    Date.parse(left.referenceTime) - Date.parse(right.referenceTime)
+    || left.forecastTime - right.forecastTime
+  );
 }
 
 export function validateGribForApp(bytes: Uint8Array): ValidatedGrib {
