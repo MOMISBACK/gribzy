@@ -48,6 +48,85 @@ main {
   font-size: 16px;
 }
 
+.privacy-main {
+  padding-top: 104px;
+  background: #f7f9fc;
+}
+
+.privacy-policy {
+  max-width: 860px;
+  padding-top: 86px;
+  padding-bottom: 110px;
+}
+
+.privacy-policy > header {
+  padding-bottom: 46px;
+  border-bottom: 1px solid #dfe6ee;
+}
+
+.privacy-policy h1 {
+  margin: 18px 0 16px;
+  color: #102a43;
+  font-size: clamp(44px, 7vw, 72px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.policy-date {
+  color: #718096;
+  font-size: 13px;
+}
+
+.policy-lead {
+  max-width: 760px;
+  margin: 28px 0 0;
+  color: #526171;
+  font-size: 19px;
+  line-height: 1.7;
+}
+
+.privacy-policy section {
+  padding: 42px 0;
+  border-bottom: 1px solid #dfe6ee;
+}
+
+.privacy-policy h2 {
+  margin: 0 0 18px;
+  color: #102a43;
+  font-size: 27px;
+  letter-spacing: -0.025em;
+}
+
+.privacy-policy h3 {
+  margin: 28px 0 10px;
+  color: #233f59;
+  font-size: 18px;
+}
+
+.privacy-policy p,
+.privacy-policy li {
+  color: #526171;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.privacy-policy p {
+  margin: 0;
+}
+
+.privacy-policy ul {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.privacy-policy li + li {
+  margin-top: 8px;
+}
+
+.policy-contact {
+  margin-top: 28px;
+}
+
 @media (max-width: 700px) {
   .site-header .nav {
     height: 84px;
@@ -66,6 +145,15 @@ main {
 
   main {
     padding-top: 84px;
+  }
+
+  .privacy-main {
+    padding-top: 84px;
+  }
+
+  .privacy-policy {
+    padding-top: 58px;
+    padding-bottom: 75px;
   }
 
   .site-header + main section[id] {
