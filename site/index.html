@@ -39,45 +39,7 @@
       </div>
 
       <div class="product-hero reveal" aria-label="Preview of the Gribzy map">
-        <div class="phone">
-          <div class="phone-speaker"></div>
-          <div class="phone-screen">
-            <div class="map-ui">
-              <div class="map-grid"></div>
-              <div class="land land-one"></div>
-              <div class="land land-two"></div>
-              <svg class="weather-lines" viewBox="0 0 320 600" aria-hidden="true">
-                <path d="M-20 104 C60 48 132 136 220 82 S342 45 360 104"/>
-                <path d="M-25 154 C65 98 142 190 231 126 S338 103 365 155"/>
-                <path d="M-10 232 C72 178 139 254 225 209 S320 181 350 230"/>
-                <path d="M-12 304 C80 256 142 332 232 282 S325 255 352 302"/>
-                <g class="wind-arrows">
-                  <path d="M56 188 l18 -12 m0 0 l-8 1 m8 -1 l-3 8"/>
-                  <path d="M132 166 l14 17 m0 0 l-2 -8 m2 8 l-8 -1"/>
-                  <path d="M226 184 l20 -7 m0 0 l-8 -2 m8 2 l-5 7"/>
-                  <path d="M82 270 l18 9 m0 0 l-5 -6 m5 6 l-8 2"/>
-                  <path d="M177 251 l10 -19 m0 0 l-6 6 m6 -6 l2 8"/>
-                  <path d="M259 290 l19 3 m0 0 l-7 -5 m7 5 l-7 4"/>
-                  <path d="M44 350 l17 -11 m0 0 l-8 1 m8 -1 l-3 8"/>
-                  <path d="M148 338 l15 15 m0 0 l-3 -8 m3 8 l-8 -1"/>
-                  <path d="M248 366 l19 -8 m0 0 l-8 -1 m8 1 l-5 7"/>
-                </g>
-              </svg>
-              <div class="map-chip"><span>Pressure</span><b>⌄</b></div>
-              <div class="map-actions"><span>⌖</span><span>◎</span></div>
-              <div class="weather-card">
-                <div><small>WIND</small><strong>17 kt SW</strong></div>
-                <div><small>PRESSURE</small><strong>1012.4 hPa</strong></div>
-              </div>
-              <div class="timeline">
-                <button aria-label="Previous forecast">‹</button>
-                <div><div class="timeline-label"><b>H+6</b><span>Tue 28 Jul · 12:00 UTC</span></div><div class="timeline-line"><i></i><i></i><i class="active"></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-                <button aria-label="Next forecast">›</button>
-              </div>
-              <div class="app-tabs"><span>▤<small>Files</small></span><span class="selected">⌖<small>Map</small></span><span>⚙<small>Settings</small></span></div>
-            </div>
-          </div>
-        </div>
+        <img class="hero-screenshot" src="assets/gribzy-map-android.png" alt="Gribzy Android map showing wind arrows, labels, an isobar and the forecast timeline">
       </div>
     </section>
 
@@ -109,33 +71,12 @@
       <div class="screens">
         <article class="screen-card screen-library reveal">
           <div class="screen-copy"><span>01</span><h3 data-en="Keep files close" data-fr="Gardez vos fichiers à portée">Keep files close</h3><p data-en="Open, rename and revisit local forecasts without an account." data-fr="Ouvrez, renommez et retrouvez vos prévisions locales sans compte.">Open, rename and revisit local forecasts without an account.</p></div>
-          <div class="mini-screen">
-            <div class="mini-header"><img src="assets/gribzy-icon.png" alt=""><b>Gribzy</b></div>
-            <h4 data-en="Your weather files" data-fr="Vos fichiers météo">Your weather files</h4>
-            <button data-en="Open a GRIB file" data-fr="Ouvrir un fichier GRIB">Open a GRIB file</button>
-            <small data-en="RECENT" data-fr="RÉCENTS">RECENT</small>
-            <div class="file-row"><i>▤</i><div><b>Brittany</b><span>GFS · 12.8 MB · 06 UTC</span></div><em>⋮</em></div>
-            <div class="file-row"><i>▤</i><div><b>Alps</b><span>Imported · 4.2 MB</span></div><em>⋮</em></div>
-          </div>
-        </article>
-
-        <article class="screen-card screen-download reveal">
-          <div class="screen-copy"><span>02</span><h3 data-en="Download only what you need" data-fr="Téléchargez uniquement l’essentiel">Download only what you need</h3><p data-en="Frame the visible area, then keep nine GFS forecast hours locally." data-fr="Cadrez la zone visible, puis conservez neuf échéances GFS localement.">Frame the visible area, then keep nine GFS forecast hours locally.</p></div>
-          <div class="mini-screen selection-screen">
-            <div class="selection-map"><div class="selection-land"></div><div class="location-pin">●</div></div>
-            <div class="selection-top"><b>Gribzy</b><span data-en="My location" data-fr="Ma position">My location</span></div>
-            <div class="download-sheet"><b>Brittany</b><small>45.5° / 50.5° · −8° / 2°</small><em data-en="VISIBLE AREA" data-fr="ZONE VISIBLE">VISIBLE AREA</em><button data-en="Download forecast" data-fr="Télécharger la prévision">Download forecast</button></div>
-          </div>
+          <div class="real-screen"><img src="assets/gribzy-library-android.png" alt="Gribzy Android file library with local GRIB forecasts"></div>
         </article>
 
         <article class="screen-card screen-map reveal">
-          <div class="screen-copy"><span>03</span><h3 data-en="Inspect every forecast hour" data-fr="Inspectez chaque échéance">Inspect every forecast hour</h3><p data-en="Move through H+0 to H+24 and inspect pressure and 10 m wind at any point." data-fr="Parcourez H+0 à H+24 et inspectez pression et vent à 10 m en tout point.">Move through H+0 to H+24 and inspect pressure and 10 m wind at any point.</p></div>
-          <div class="wide-map">
-            <div class="map-grid"></div><div class="wide-land"></div>
-            <svg viewBox="0 0 760 380" aria-hidden="true"><path d="M-30 75 C120 5 205 140 355 68 S610 8 800 92"/><path d="M-20 142 C120 70 228 208 380 127 S637 75 800 155"/><path d="M-20 248 C124 174 240 312 396 229 S632 178 800 256"/><path d="M-30 324 C122 253 258 390 408 305 S650 258 800 333"/></svg>
-            <div class="wide-weather-card"><small>WEATHER POINT</small><b>18 kt SW</b><strong>1011.8 hPa</strong></div>
-            <div class="wide-timeline"><button>‹</button><div><b>H+12</b><span>Tue 28 Jul · 18:00 UTC</span><i></i></div><button>›</button></div>
-          </div>
+          <div class="screen-copy"><span>02</span><h3 data-en="Inspect every forecast hour" data-fr="Inspectez chaque échéance">Inspect every forecast hour</h3><p data-en="Move through H+0 to H+24 and inspect pressure and 10 m wind at any point." data-fr="Parcourez H+0 à H+24 et inspectez pression et vent à 10 m en tout point.">Move through H+0 to H+24 and inspect pressure and 10 m wind at any point.</p></div>
+          <div class="real-screen"><img src="assets/gribzy-map-android.png" alt="Gribzy Android weather map with a forecast timeline"></div>
         </article>
       </div>
     </section>

@@ -48,6 +48,34 @@ main {
   font-size: 16px;
 }
 
+.hero-screenshot {
+  display: block;
+  width: min(430px, 100%);
+  height: auto;
+  filter: drop-shadow(0 34px 42px rgba(16, 42, 67, 0.24));
+}
+
+.real-screen {
+  height: 500px;
+  align-self: end;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.real-screen img {
+  display: block;
+  width: auto;
+  height: 590px;
+  object-fit: contain;
+  filter: drop-shadow(0 28px 32px rgba(16, 42, 67, 0.2));
+}
+
+.screen-map {
+  min-height: 520px;
+  grid-template-columns: .72fr 1.28fr;
+}
+
 .privacy-main {
   padding-top: 104px;
   background: #f7f9fc;
@@ -154,6 +182,22 @@ main {
   .privacy-policy {
     padding-top: 58px;
     padding-bottom: 75px;
+  }
+
+  .hero-screenshot {
+    width: min(360px, 100%);
+  }
+
+  .real-screen {
+    height: 470px;
+  }
+
+  .real-screen img {
+    height: 540px;
+  }
+
+  .screen-map {
+    grid-template-columns: 1fr;
   }
 
   .site-header + main section[id] {
