@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://momisback.github.io/gribzy/sitemap.xml
